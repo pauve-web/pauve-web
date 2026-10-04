@@ -1,0 +1,12 @@
+# Configuración del servidor web de Pauvè (Caddy)
+# El servidor la carga desde /etc/caddy/Caddyfile mediante "import".
+
+www.pauvestudio.com {
+	redir https://pauvestudio.com{uri} permanent
+}
+
+pauvestudio.com {
+	root * /var/www/pauve-web/public
+	encode zstd gzip
+	file_server
+}

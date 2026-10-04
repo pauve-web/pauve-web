@@ -1,16 +1,15 @@
-## Hi there 👋
+# pauve-web
 
-<!--
-**pauve-web/pauve-web** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Web de Pauvè · Tooth Gems · Sevilla — https://pauvestudio.com
 
-Here are some ideas to get you started:
+## Cómo funciona
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+- `public/` → contenido de la web (lo que se publica).
+- `Caddyfile` → configuración del servidor web (HTTPS automático, redirección de www).
+- El servidor (Hetzner, `pauve-web`) descarga los cambios de la rama `main` cada 5 minutos
+  (`/etc/cron.d/pauve-web`) y recarga Caddy. Publicar = hacer push a `main`.
+
+## Notas
+
+- Repositorio público: nunca subir contraseñas, claves ni datos de clientas.
+- DNS en Cloudflare (registros A/AAAA en modo "DNS only").

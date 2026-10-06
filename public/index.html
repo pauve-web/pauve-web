@@ -2,26 +2,302 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- BORRADOR: quitar "noindex" el día que la web se publique con las fotos reales -->
   <meta name="robots" content="noindex">
-  <title>Pauvè · Tooth Gems · Sevilla</title>
-  <style>
-    :root { --tinta: #1C1815; --crudo: #F3ECE1; --plata: #A8A093; }
-    * { margin: 0; box-sizing: border-box; }
-    body {
-      min-height: 100vh; display: grid; place-items: center; text-align: center;
-      background: var(--crudo); color: var(--tinta); padding: 24px;
-      font-family: Georgia, "Times New Roman", serif;
-    }
-    h1 { font-size: clamp(3rem, 12vw, 6rem); font-weight: 400; letter-spacing: .02em; }
-    p { margin-top: 12px; font-size: .8rem; letter-spacing: .4em; text-transform: uppercase; color: var(--plata); }
-  </style>
+  <title>Gemas dentales en Dos Hermanas, Sevilla · Pauvè Studio</title>
+  <meta name="description" content="Gemas dentales en Dos Hermanas, Sevilla, colocadas por una higienista bucodental. Cristales Swarovski® y materiales de uso odontológico. Reserva tu cita online.">
+  <link rel="canonical" href="https://pauvestudio.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Pauvè Studio · Gemas dentales en Dos Hermanas, Sevilla">
+  <meta property="og:description" content="Gemas dentales colocadas por una higienista bucodental. Cristales Swarovski®.">
+  <meta property="og:url" content="https://pauvestudio.com/">
+  <meta property="og:locale" content="es_ES">
+  <meta name="theme-color" content="#F3ECE1">
+  <link rel="preload" href="fonts/bodoni-moda-italic.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BeautySalon",
+    "name": "Pauvè Studio",
+    "description": "Gemas dentales colocadas por una higienista bucodental, con cristales Swarovski®.",
+    "url": "https://pauvestudio.com/",
+    "logo": "https://pauvestudio.com/img/logo-tinta.png",
+    "telephone": "+34633123150",
+    "priceRange": "25 € – 250 €",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Calle Carlos I de España, local 20 (en Patricia Barbero Nails)",
+      "addressLocality": "Dos Hermanas",
+      "addressRegion": "Sevilla",
+      "addressCountry": "ES"
+    },
+    "areaServed": [
+      { "@type": "City", "name": "Dos Hermanas" },
+      { "@type": "City", "name": "Sevilla" }
+    ],
+    "founder": { "@type": "Person", "name": "Paula Garrido", "jobTitle": "Higienista bucodental" },
+    "sameAs": ["https://www.instagram.com/pauvestudio/"]
+  }
+  </script>
 </head>
 <body>
-  <main>
-    <h1>Pauvè</h1>
-    <p>Tooth Gems · Sevilla</p>
-    <p>Próximamente</p>
-  </main>
+
+<header class="cabecera">
+  <div class="envoltorio">
+    <a class="cabecera__logo" href="#inicio" aria-label="Pauvè Studio, inicio">
+      <img src="img/logo-tinta.png" alt="Pauvè Tooth Gems" width="1000" height="407">
+    </a>
+    <nav aria-label="Secciones">
+      <a class="enlace" href="#precios">Precios</a>
+      <a class="enlace" href="#preguntas">Preguntas</a>
+      <a class="enlace" href="#donde">Dónde estoy</a>
+      <a class="boton boton--pequeno" href="#reservar">Reservar cita</a>
+    </nav>
+  </div>
+</header>
+
+<main id="inicio">
+
+  <!-- PORTADA -->
+  <section class="portada">
+    <div class="envoltorio portada__rejilla">
+      <div class="hueco portada__foto" role="img" aria-label="Foto pendiente">
+        <span>FOTO PENDIENTE · Portada: sonrisa con gema en primer plano, luz natural</span>
+      </div>
+      <div class="portada__texto">
+        <h1>
+          <span class="portada__seo">Gemas dentales en Dos Hermanas, Sevilla</span>
+          <span class="portada__titular">Tu sonrisa ya era bonita. Ahora también brilla.</span>
+        </h1>
+        <div class="portada__acciones">
+          <a class="boton" href="#reservar">Reservar cita</a>
+          <a class="boton boton--linea" href="https://wa.me/34633123150?text=Hola%20Paula%2C%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre%20las%20gemas%20dentales" target="_blank" rel="noopener">Escribir por WhatsApp</a>
+        </div>
+        <ul class="portada__garantias">
+          <li>Colocadas por Paula Garrido, higienista bucodental</li>
+          <li>Cristales Swarovski®</li>
+          <li>Sin limar ni perforar el diente</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOBRE MÍ -->
+  <section class="seccion" id="sobre-mi">
+    <div class="envoltorio sobre">
+      <div class="hueco sobre__foto" role="img" aria-label="Foto pendiente">
+        <span>FOTO PENDIENTE · Paula</span>
+      </div>
+      <div class="sobre__texto">
+        <h2>Detrás de cada gema, años cuidando sonrisas.</h2>
+        <p class="seccion__intro">Soy higienista bucodental. Sé cómo es un diente sano y cómo se cuida, y pongo ese criterio en algo que me encanta: que tu gema quede bonita, bien colocada y segura.</p>
+        <p class="sobre__firma">Paula Garrido <small>Higienista bucodental · Fundadora de Pauvè Studio</small></p>
+        <dl class="puntos">
+          <div>
+            <dt>Formación clínica</dt>
+            <dd>Formación oficial como higienista bucodental. Tu diente está en manos de alguien que lo conoce.</dd>
+          </div>
+          <div>
+            <dt>Materiales odontológicos</dt>
+            <dd>Utilizo los mismos adhesivos que se usan en ortodoncia.</dd>
+          </div>
+          <div>
+            <dt>Solo dientes sanos</dt>
+            <dd>Si un diente no está en condiciones, te lo digo antes de colocar nada.</dd>
+          </div>
+          <div>
+            <dt>Pensada para ti</dt>
+            <dd>Elegimos tamaño, forma y posición para tu sonrisa, no para la de otra persona.</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTADOS -->
+  <section class="seccion" id="resultados">
+    <div class="envoltorio">
+      <h2>Resultados reales</h2>
+      <p class="seccion__intro">Cada sonrisa es distinta. Estas son algunas de las que han pasado por el estudio.</p>
+      <div class="seccion__cuerpo">
+        <div class="galeria">
+          <div class="hueco" role="img" aria-label="Foto pendiente"><span>FOTO PENDIENTE · Gema clásica</span></div>
+          <div class="hueco" role="img" aria-label="Foto pendiente"><span>FOTO PENDIENTE · Gema con forma</span></div>
+          <div class="hueco" role="img" aria-label="Foto pendiente"><span>FOTO PENDIENTE · Composición</span></div>
+          <div class="hueco" role="img" aria-label="Foto pendiente"><span>FOTO PENDIENTE · Resultado</span></div>
+          <div class="hueco" role="img" aria-label="Foto pendiente"><span>FOTO PENDIENTE · Resultado</span></div>
+          <div class="hueco" role="img" aria-label="Foto pendiente"><span>FOTO PENDIENTE · Resultado</span></div>
+        </div>
+        <p class="galeria__pie">Más resultados en <a href="https://www.instagram.com/pauvestudio/" target="_blank" rel="noopener">Instagram, @pauvestudio</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROCESO -->
+  <section class="seccion" id="proceso">
+    <div class="envoltorio">
+      <h2>Así es tu cita</h2>
+      <div class="seccion__cuerpo">
+        <ol class="pasos">
+          <li>
+            <div>
+              <h3>Elegimos juntas</h3>
+              <p>Miramos tu sonrisa y decidimos gema, forma y posición. Si es tu primera vez, puedes empezar por una pequeña.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>La colocación</h3>
+              <p>Preparo la superficie del diente y fijo la gema con adhesivo de uso odontológico. Son unos minutos y no necesitas anestesia.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>Te vas brillando</h3>
+              <p>Te explico cómo cuidarla y te llevas los cuidados por escrito.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRECIOS -->
+  <section class="seccion precios" id="precios">
+    <div class="envoltorio">
+      <h2>Precios</h2>
+      <div class="seccion__cuerpo">
+        <ul class="tarifa">
+          <li>
+            <span class="tarifa__nombre">Gema clásica</span>
+            <span class="tarifa__detalle">Cristal Swarovski®</span>
+            <span class="tarifa__precio"><small>desde</small>25 €</span>
+          </li>
+          <li>
+            <span class="tarifa__nombre">Gema con forma</span>
+            <span class="tarifa__detalle">Corazón, estrella, flor y más, en Swarovski®</span>
+            <span class="tarifa__precio"><small>desde</small>30 €</span>
+          </li>
+          <li>
+            <span class="tarifa__nombre">Composiciones Pauvè</span>
+            <span class="tarifa__detalle">Diseños propios: Cerezo, Luna, Tulipán, Estrella fugaz…</span>
+            <span class="tarifa__precio"><small>desde</small>55 €</span>
+          </li>
+          <li>
+            <span class="tarifa__nombre">Freestyle</span>
+            <span class="tarifa__detalle">Un diseño creado para ti, según número de piezas</span>
+            <span class="tarifa__precio"><small>desde</small>95 €</span>
+          </li>
+        </ul>
+        <p class="precios__nota">Precios con IVA incluido. Los diseños Freestyle se presupuestan antes de la cita según el número de piezas y la complejidad.</p>
+        <div class="precios__cta">
+          <p>¿Tienes una idea en mente?</p>
+          <a class="boton boton--linea" href="https://wa.me/34633123150?text=Hola%20Paula%2C%20tengo%20una%20idea%20para%20un%20dise%C3%B1o" target="_blank" rel="noopener">Contármela por WhatsApp</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PREGUNTAS -->
+  <section class="seccion" id="preguntas">
+    <div class="envoltorio">
+      <h2>Lo que todo el mundo pregunta</h2>
+      <div class="seccion__cuerpo preguntas">
+        <details>
+          <summary>¿Duele?</summary>
+          <p>No. La gema se adhiere a la superficie del diente: no se lima, no se perfora y no hace falta anestesia.</p>
+        </details>
+        <details>
+          <summary>¿Estropea el esmalte?</summary>
+          <p>No modifica el esmalte de forma permanente. Cuando quieras quitarla, la retiro en cita y pulo la superficie. No intentes quitarla tú.</p>
+        </details>
+        <details>
+          <summary>¿Cuánto dura?</summary>
+          <p>Depende de tu higiene, tu alimentación y tus hábitos, así que nadie puede prometerte una fecha concreta. Si se cae sola en los primeros días, te la vuelvo a colocar sin coste.</p>
+        </details>
+        <details>
+          <summary>¿Cuánto cuesta?</summary>
+          <p>Una gema clásica Swarovski® cuesta 25 €, y una con forma, 30 €. Las composiciones empiezan en 55 €. Tienes todos los precios más arriba.</p>
+        </details>
+        <details>
+          <summary>¿Cómo sé si me va a quedar bien?</summary>
+          <p>Antes de colocar nada, vemos juntas el tamaño, la forma y la posición frente al espejo. Si dudas, empieza por una gema pequeña: siempre puedes añadir más.</p>
+        </details>
+        <details>
+          <summary>¿Se puede poner en cualquier diente?</summary>
+          <p>Solo en dientes naturales y sanos: sin caries, fracturas, coronas ni carillas. Si no es tu caso, te lo diré antes de empezar.</p>
+        </details>
+        <details>
+          <summary>¿Y si soy menor de edad?</summary>
+          <p>Puedes venir acompañada de tu madre, padre o tutor legal, que firmará el consentimiento contigo.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CUIDADOS -->
+  <section class="seccion" id="cuidados">
+    <div class="envoltorio">
+      <h2>Después de tu cita</h2>
+      <p class="seccion__intro">Cinco cuidados para que tu gema dure más.</p>
+      <div class="seccion__cuerpo">
+        <ul class="cuidados">
+          <li>Evita fumar y el alcohol durante las primeras 24 horas.</li>
+          <li>Evita los alimentos especialmente duros los primeros días.</li>
+          <li>No toques la gema ni intentes quitarla tú.</li>
+          <li>No apoyes el cepillo eléctrico directamente sobre la gema.</li>
+          <li>Mantén tu higiene bucodental de siempre.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- CIERRE: RESERVA Y DÓNDE -->
+  <section class="cierre" id="reservar">
+    <div class="envoltorio">
+      <img class="cierre__logo" src="img/logo-crudo.png" alt="Pauvè Tooth Gems" width="1000" height="407" loading="lazy">
+      <h2>Tu sonrisa ya tiene todo lo que necesita. Solo le falta el brillo.</h2>
+      <div class="cierre__rejilla">
+        <div class="cierre__bloque">
+          <h3>Reservar</h3>
+          <p>Elige día y hora en el calendario. Para un diseño a medida, escríbeme antes por WhatsApp.</p>
+          <div class="cierre__acciones">
+            <!-- PENDIENTE: enlace de la página de citas de Google Calendar -->
+            <a class="boton" href="#reservar" data-pendiente="google-calendar">Reservar cita</a>
+            <a class="boton boton--linea" href="https://wa.me/34633123150?text=Hola%20Paula%2C%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre%20las%20gemas%20dentales" target="_blank" rel="noopener">WhatsApp</a>
+          </div>
+          <p class="pendiente">Borrador: el botón de reserva se conectará con tu calendario.</p>
+        </div>
+        <div class="cierre__bloque" id="donde">
+          <h3>Dónde estoy</h3>
+          <address>
+            Dentro de Patricia Barbero Nails<br>
+            Calle Carlos I de España, local 20<br>
+            Dos Hermanas, Sevilla
+          </address>
+          <p><a class="enlace" href="https://www.google.com/maps/search/?api=1&amp;query=Patricia%20Barbero%20Nails%20Calle%20Carlos%20I%20de%20Espa%C3%B1a%2020%20Dos%20Hermanas" target="_blank" rel="noopener">Cómo llegar</a></p>
+          <p>Teléfono y WhatsApp: <a class="enlace" href="https://wa.me/34633123150" target="_blank" rel="noopener">633 123 150</a><br>
+          Instagram: <a class="enlace" href="https://www.instagram.com/pauvestudio/" target="_blank" rel="noopener">@pauvestudio</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="pie">
+  <div class="envoltorio">
+    <span>© 2026 Pauvè Studio. Gemas dentales en Dos Hermanas, Sevilla.</span>
+    <span><a href="#">Aviso legal</a> &nbsp; <a href="#">Privacidad</a></span>
+  </div>
+</footer>
+
+<div class="barra-reserva">
+  <a class="boton" href="#reservar">Reservar cita</a>
+  <a class="boton boton--linea" href="https://wa.me/34633123150" target="_blank" rel="noopener" aria-label="Escribir por WhatsApp">WhatsApp</a>
+</div>
+
 </body>
 </html>

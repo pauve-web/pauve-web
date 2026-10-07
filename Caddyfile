@@ -8,5 +8,8 @@ www.pauvestudio.com {
 pauvestudio.com {
 	root * /var/www/pauve-web/public
 	encode zstd gzip
+	# Que el navegador compruebe siempre si hay una versión nueva de las páginas
+	@paginas path / *.html */
+	header @paginas Cache-Control "no-cache"
 	file_server
 }

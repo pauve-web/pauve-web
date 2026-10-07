@@ -317,30 +317,34 @@ a { color: inherit; }
 .reserva__alternativa { padding: 0.75rem 0.5rem 0.25rem; font-size: var(--t-xs); color: var(--tinta-media); }
 .pie--reserva { padding-bottom: 1.5rem; }
 
-/* ---------- Palabras en cursiva con brillo de gema ----------
-   Las cursivas de los titulares llevan un tono oro/champán y un destello
-   que las recorre de vez en cuando, como la luz sobre un cristal.
-   Sobre fondo claro se usa un oro oscuro (legible); sobre fondo oscuro, champán. */
+/* ---------- Palabras en cursiva con brillo de cristal ----------
+   Las cursivas de los titulares tienen un tono frío, como un cristal Swarovski,
+   y un destello blanco azulado que las recorre de vez en cuando.
+   Sobre fondo claro el tono base es un gris azulado oscuro (legible);
+   sobre la foto y el fondo oscuro, un blanco hielo. */
 :root {
-  --oro-base: #8C6B32;      /* sobre crudo: contraste suficiente para titulares */
-  --oro-destello: #E8D3A0;
-  --champan-base: #D9C08A;  /* sobre foto u oscuro */
-  --champan-destello: #FFF7E2;
+  --cristal-base: #4E5D6C;     /* sobre crudo */
+  --cristal-medio: #8FA6BA;
+  --cristal-destello: #EAF4FF;
+  --hielo-base: #DCE7F0;       /* sobre foto u oscuro */
+  --hielo-destello: #FFFFFF;
+  --hielo-tinte: #BFD8F2;
 }
-.seccion h2 em, .reserva h1 em { color: var(--oro-base); }
-.portada__titular em, .cierre h2 em { color: var(--champan-base); }
+.seccion h2 em, .reserva h1 em { color: var(--cristal-base); }
+.portada__titular em, .cierre h2 em { color: var(--hielo-base); }
 
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
-    --b: var(--oro-base); --d: var(--oro-destello);
-    background-image: linear-gradient(105deg, var(--b) 0%, var(--b) 42%, var(--d) 50%, var(--b) 58%, var(--b) 100%);
+    --b: var(--cristal-base); --m: var(--cristal-medio); --d: var(--cristal-destello);
+    background-image: linear-gradient(105deg,
+      var(--b) 0%, var(--b) 40%, var(--m) 45%, var(--d) 50%, var(--m) 55%, var(--b) 60%, var(--b) 100%);
     background-size: 300% 100%;
     background-position: 100% 0;
     -webkit-background-clip: text; background-clip: text;
     color: transparent;
     padding-right: 0.06em; /* que la última letra cursiva no quede cortada */
   }
-  .portada__titular em, .cierre h2 em { --b: var(--champan-base); --d: var(--champan-destello); }
+  .portada__titular em, .cierre h2 em { --b: var(--hielo-base); --m: var(--hielo-tinte); --d: var(--hielo-destello); }
 }
 @media (prefers-reduced-motion: no-preference) {
   .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
@@ -352,4 +356,19 @@ a { color: inherit; }
     85%, 100% { background-position: 0% 0; }
   }
 }
+/* Fotos */
+.foto { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--greige); }
+.ficha .foto { aspect-ratio: 4 / 5; }
+.mosaico .foto { aspect-ratio: 1; }
+.mosaico .foto:first-child { grid-column: span 2; aspect-ratio: 2 / 1.1; }
+@media (min-width: 52rem) {
+  .mosaico .foto:first-child { grid-row: span 2; aspect-ratio: auto; }
+}
+.sobre__foto.foto { aspect-ratio: 4 / 5; object-position: 50% 25%; }
+
 @media (max-width: 40rem) { .portada { min-height: min(78svh, 40rem); } }
+/* Precios: el precio siempre alineado abajo, aunque los textos tengan distinto largo */
+.precios .ficha { display: flex; flex-direction: column; gap: 0.9rem; }
+.precios .ficha__precio { margin-top: auto; }
+/* Números del proceso en el mismo tono cristal que las cursivas */
+.paso__num { color: var(--cristal-medio); }

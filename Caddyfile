@@ -1,6 +1,15 @@
 # Configuración del servidor web de Pauvè (Caddy)
 # El servidor la carga desde /etc/caddy/Caddyfile mediante "import".
 
+# Opciones generales: solo HTTP/1.1 y HTTP/2. Se desactiva HTTP/3 (QUIC)
+# porque las recargas del servidor cortaban esas conexiones y los navegadores
+# se quedaban con la página en blanco.
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
 www.pauvestudio.com {
 	redir https://pauvestudio.com{uri} permanent
 }

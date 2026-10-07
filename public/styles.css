@@ -318,44 +318,51 @@ a { color: inherit; }
 .pie--reserva { padding-bottom: 1.5rem; }
 
 /* ---------- Palabras en cursiva con brillo de cristal ----------
-   Las cursivas de los titulares tienen un tono frío, como un cristal Swarovski,
-   y un destello blanco azulado que las recorre de vez en cuando.
-   Sobre fondo claro el tono base es un gris azulado oscuro (legible);
-   sobre la foto y el fondo oscuro, un blanco hielo. */
-:root {
-  --cristal-base: #4E5D6C;     /* sobre crudo */
-  --cristal-medio: #8FA6BA;
-  --cristal-destello: #EAF4FF;
-  --hielo-base: #DCE7F0;       /* sobre foto u oscuro */
-  --hielo-destello: #FFFFFF;
-  --hielo-tinte: #BFD8F2;
+   Inspirado en el efecto "shine border", pero aplicado a las letras:
+   un degradado cónico de azules claros que gira despacio dentro de la palabra,
+   como la luz moviéndose dentro de un cristal Swarovski (con un reflejo
+   tornasolado muy sutil, como los cristales aurora boreal).
+   Sobre fondo claro se usan azules más profundos para que se lea bien. */
+@property --giro {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
 }
-.seccion h2 em, .reserva h1 em { color: var(--cristal-base); }
-.portada__titular em, .cierre h2 em { color: var(--hielo-base); }
+:root {
+  /* sobre crudo */
+  --cr-1: #2F4C6B; --cr-2: #5F8DB8; --cr-3: #3B6690; --cr-4: #89B4DA; --cr-5: #4C5FA0;
+  /* sobre foto u oscuro */
+  --hi-1: #FFFFFF; --hi-2: #BFDDFB; --hi-3: #EAF5FF; --hi-4: #9FC9F2; --hi-5: #DCD6FA; --hi-6: #C7F0EE;
+}
+.seccion h2 em, .reserva h1 em { color: var(--cr-1); }
+.portada__titular em, .cierre h2 em { color: var(--hi-2); }
 
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .seccion h2 em, .reserva h1 em {
+    background-image: conic-gradient(from var(--giro) at 50% 50%,
+      var(--cr-1), var(--cr-2), var(--cr-3), var(--cr-4), var(--cr-5), var(--cr-2), var(--cr-1));
+  }
+  .portada__titular em, .cierre h2 em {
+    background-image: conic-gradient(from var(--giro) at 50% 50%,
+      var(--hi-1), var(--hi-2), var(--hi-6), var(--hi-3), var(--hi-4), var(--hi-5), var(--hi-1));
+  }
   .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
-    --b: var(--cristal-base); --m: var(--cristal-medio); --d: var(--cristal-destello);
-    background-image: linear-gradient(105deg,
-      var(--b) 0%, var(--b) 40%, var(--m) 45%, var(--d) 50%, var(--m) 55%, var(--b) 60%, var(--b) 100%);
-    background-size: 300% 100%;
-    background-position: 100% 0;
+    background-size: 100% 100%;
     -webkit-background-clip: text; background-clip: text;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; /* cada línea brilla entera */
     color: transparent;
     padding-right: 0.06em; /* que la última letra cursiva no quede cortada */
   }
-  .portada__titular em, .cierre h2 em { --b: var(--hielo-base); --m: var(--hielo-tinte); --d: var(--hielo-destello); }
 }
 @media (prefers-reduced-motion: no-preference) {
   .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
-    animation: destello 6s ease-in-out infinite;
+    animation: giro-cristal 5s linear infinite;
   }
-  .portada__titular em { animation-delay: 1.2s; }
-  @keyframes destello {
-    0%, 55% { background-position: 100% 0; }
-    85%, 100% { background-position: 0% 0; }
-  }
+  @keyframes giro-cristal { to { --giro: 360deg; } }
 }
+/* Números del proceso a juego */
+.paso__num { color: var(--cr-2); }
+
 /* Fotos */
 .foto { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--greige); }
 .ficha .foto { aspect-ratio: 4 / 5; }
@@ -370,5 +377,3 @@ a { color: inherit; }
 /* Precios: el precio siempre alineado abajo, aunque los textos tengan distinto largo */
 .precios .ficha { display: flex; flex-direction: column; gap: 0.9rem; }
 .precios .ficha__precio { margin-top: auto; }
-/* Números del proceso en el mismo tono cristal que las cursivas */
-.paso__num { color: var(--cristal-medio); }

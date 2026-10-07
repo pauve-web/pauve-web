@@ -1,0 +1,383 @@
+/* Pauvè Studio — hoja de estilos (borrador v2)
+   Concepto: menos texto, más imagen. Portada a sangre con el titular sobre la foto;
+   el resto se lee como un lookbook: fichas con foto para el proceso y los precios,
+   y frases cortas. Una sola apariencia (papel crudo), la de la marca. */
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("fonts/instrument-serif.woff") format("woff");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("fonts/instrument-serif-italic.woff") format("woff");
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: "Manrope";
+  src: url("fonts/manrope.woff") format("woff");
+  font-weight: 200 800; font-style: normal; font-display: swap;
+}
+
+:root {
+  /* Color: paleta oficial de la Guía de Marca */
+  --tinta: #1C1815;
+  --crudo: #F3ECE1;
+  --greige: #C9BFAE;
+  --plata: #A8A093;
+  --dorado: #AE8A44;        /* acento puntual: números del proceso */
+  --tinta-media: #4A423B;   /* texto secundario sobre crudo (contraste AA) */
+  --greige-claro: #E8E0D3;  /* fondo de fichas */
+  --foto-oscura: #3B332C;   /* simula la foto de portada mientras no esté */
+
+  /* Tipo: serif de titulares legible a cualquier tamaño + sans muy clara para leer */
+  --display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --texto: "Manrope", "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
+  --t-xs: 0.8125rem;
+  --t-s: 0.9375rem;
+  --t-m: 1.0625rem;
+  --t-l: 1.5rem;
+  --t-xl: clamp(2.2rem, 6vw, 3.4rem);
+  --t-xxl: clamp(3rem, 10vw, 6.6rem);
+
+  --medida: 32rem;
+  --ancho: 74rem;
+  --margen: clamp(1.25rem, 5vw, 3rem);
+
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--crudo);
+  color: var(--tinta);
+  font-family: var(--texto);
+  font-size: var(--t-m);
+  font-weight: 450;
+  line-height: 1.55;
+}
+img { max-width: 100%; height: auto; display: block; }
+h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--dorado); outline-offset: 3px; }
+
+.envoltorio { max-width: var(--ancho); margin-inline: auto; padding-inline: var(--margen); }
+
+/* ---------- Cabecera ---------- */
+.cabecera {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: var(--crudo); border-bottom: 1px solid var(--greige);
+}
+.cabecera .envoltorio {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding-block: 0.55rem;
+}
+.cabecera__logo img { height: 2.9rem; width: auto; }
+.cabecera nav { display: flex; align-items: center; gap: 1.75rem; }
+.cabecera nav a.enlace { text-decoration: none; font-size: var(--t-s); font-weight: 500; }
+.cabecera nav a.enlace:hover { text-decoration: underline; text-underline-offset: 5px; }
+@media (max-width: 52rem) { .cabecera nav a.enlace { display: none; } }
+
+/* ---------- Botones ---------- */
+.boton {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 3rem; padding: 0.75rem 1.6rem;
+  font-family: var(--texto); font-size: var(--t-s); font-weight: 600;
+  text-decoration: none; border-radius: 999px;
+  border: 1px solid var(--tinta); background: var(--tinta); color: var(--crudo);
+  transition: background-color .2s, color .2s;
+}
+.boton:hover { background: transparent; color: var(--tinta); }
+.boton--linea { background: transparent; color: var(--tinta); }
+.boton--linea:hover { background: var(--tinta); color: var(--crudo); }
+.boton--claro { background: var(--crudo); color: var(--tinta); border-color: var(--crudo); }
+.boton--claro:hover { background: transparent; color: var(--crudo); }
+.boton--claro-linea { background: transparent; color: var(--crudo); border-color: var(--crudo); }
+.boton--claro-linea:hover { background: var(--crudo); color: var(--tinta); }
+.boton--pequeno { min-height: 2.4rem; padding: 0.4rem 1.1rem; font-size: var(--t-xs); }
+
+/* ---------- Huecos de foto (provisionales) ---------- */
+.hueco {
+  display: grid; place-items: center; text-align: center; padding: 1rem;
+  background: var(--greige); color: var(--tinta-media);
+  font-size: var(--t-xs); font-weight: 500; max-width: 100%;
+}
+.hueco span { max-width: 14rem; }
+
+/* ---------- Portada a sangre, titular sobre la foto ---------- */
+.portada {
+  position: relative; isolation: isolate;
+  min-height: min(92svh, 54rem);
+  /* en móvil, menos alto para que la foto no se recorte tanto */
+  display: grid; align-items: end;
+  color: var(--crudo);
+  background: linear-gradient(160deg, #5a4d42 0%, var(--foto-oscura) 55%, var(--tinta) 100%);
+}
+.portada__foto {
+  position: absolute; inset: 0; z-index: -2;
+  width: 100%; height: 100%; object-fit: cover;
+  object-position: 62% 40%; /* mantiene la sonrisa a la vista al recortar en móvil */
+}
+.portada__aviso {
+  position: absolute; top: 1.25rem; right: var(--margen);
+  font-size: var(--t-xs); color: var(--plata);
+}
+/* Velo para que el texto se lea siempre, sea cual sea la foto */
+.portada::after {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(to top, rgb(28 24 21 / .78) 0%, rgb(28 24 21 / .25) 45%, rgb(28 24 21 / 0) 70%);
+}
+.portada__contenido {
+  width: 100%; display: grid; gap: 1.75rem;
+  padding-block: 6rem clamp(2.5rem, 7vw, 5rem);
+}
+.portada h1 { display: grid; gap: 1rem; font-weight: 400; }
+.portada__seo { font-size: var(--t-s); font-weight: 500; color: var(--crudo); opacity: .85; }
+.portada__titular {
+  font-family: var(--display); font-weight: 400;
+  font-size: var(--t-xxl); line-height: 0.98; letter-spacing: -0.015em;
+  max-width: 14ch; text-wrap: balance;
+}
+.portada__titular em { font-style: italic; }
+.portada__acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+/* Tira de garantías bajo la portada */
+.garantias { border-bottom: 1px solid var(--greige); }
+.garantias ul {
+  list-style: none; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.garantias li {
+  padding: 1.4rem 1rem; text-align: center;
+  font-size: var(--t-s); font-weight: 500; line-height: 1.35;
+}
+.garantias li + li { border-left: 1px solid var(--greige); }
+.garantias strong { display: block; font-family: var(--display); font-weight: 400; font-size: var(--t-l); line-height: 1.1; margin-bottom: 0.2rem; }
+@media (max-width: 40rem) {
+  .garantias li { padding: 1.1rem 0.4rem; font-size: var(--t-xs); }
+  .garantias strong { font-size: 1.2rem; }
+}
+
+/* ---------- Secciones ---------- */
+.seccion { padding-block: clamp(4rem, 10vw, 7.5rem); }
+.seccion h2 {
+  font-family: var(--display); font-weight: 400;
+  font-size: var(--t-xl); line-height: 1.05; letter-spacing: -0.01em;
+  text-wrap: balance; max-width: 18ch;
+}
+.seccion h2 em { font-style: italic; }
+.seccion__cabeza { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 1rem 2rem; }
+.seccion__cabeza p { max-width: 24rem; color: var(--tinta-media); }
+.seccion__cuerpo { margin-top: clamp(2rem, 5vw, 3.25rem); }
+
+/* Sobre mí */
+.sobre { display: grid; gap: clamp(2rem, 5vw, 4.5rem); align-items: center; }
+.sobre__foto { aspect-ratio: 4 / 5; }
+.sobre__texto { display: grid; gap: 2.25rem; min-width: 0; }
+.sobre__nombre { font-size: var(--t-s); font-weight: 600; letter-spacing: 0.02em; }
+.sobre__claves { display: grid; gap: 1.75rem; }
+.sobre__claves div { border-top: 1px solid var(--tinta); padding-top: 1rem; }
+.sobre__claves dt { font-family: var(--display); font-size: var(--t-l); line-height: 1.15; }
+.sobre__claves dd { margin-top: 0.35rem; color: var(--tinta-media); }
+@media (min-width: 52rem) { .sobre { grid-template-columns: 5fr 6fr; } }
+
+/* Resultados: mosaico */
+.mosaico { display: grid; gap: 0.6rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mosaico .hueco { aspect-ratio: 1; }
+.mosaico .hueco:first-child { grid-column: span 2; aspect-ratio: 2 / 1.1; }
+@media (min-width: 52rem) {
+  .mosaico { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mosaico .hueco:first-child { grid-column: span 2; grid-row: span 2; aspect-ratio: auto; }
+}
+.mosaico__pie { margin-top: 1.25rem; font-size: var(--t-s); font-weight: 500; }
+
+/* Fichas con foto (proceso y precios) */
+.fichas {
+  list-style: none; padding: 0; display: grid; gap: 1.25rem;
+  grid-template-columns: repeat(var(--columnas, 3), minmax(0, 1fr));
+}
+.ficha { display: grid; gap: 0.9rem; align-content: start; min-width: 0; }
+.ficha .hueco { aspect-ratio: 4 / 5; }
+.ficha h3 { font-family: var(--display); font-weight: 400; font-size: var(--t-l); line-height: 1.1; }
+.ficha p { color: var(--tinta-media); font-size: var(--t-s); }
+
+/* En móvil, las fichas se deslizan en horizontal */
+@media (max-width: 52rem) {
+  .fichas {
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 72%;
+    overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 0.75rem;
+    margin-inline: calc(var(--margen) * -1); padding-inline: var(--margen);
+    scroll-padding-inline: var(--margen);
+  }
+  .ficha { scroll-snap-align: start; }
+}
+
+.paso__num { font-family: var(--display); font-style: italic; font-size: 2.4rem; line-height: 1; color: var(--dorado); }
+.paso__fila { display: flex; align-items: baseline; gap: 0.75rem; }
+
+.precios { background: var(--greige-claro); }
+.precios .fichas { --columnas: 4; }
+.ficha__precio { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; border-top: 1px solid var(--plata); padding-top: 0.75rem; }
+.ficha__precio span { font-size: var(--t-xs); font-weight: 500; color: var(--tinta-media); }
+.ficha__precio strong { font-family: var(--display); font-weight: 400; font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.precios__pie { margin-top: 2.5rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.25rem 2rem; }
+.precios__pie p { font-family: var(--display); font-style: italic; font-size: var(--t-l); }
+.precios__nota { margin-top: 1rem; font-size: var(--t-xs); color: var(--tinta-media); }
+
+/* Preguntas */
+.preguntas { max-width: 46rem; }
+.preguntas details { border-bottom: 1px solid var(--greige); }
+.preguntas details:first-child { border-top: 1px solid var(--greige); }
+.preguntas summary {
+  list-style: none; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding-block: 1.1rem; font-size: var(--t-m); font-weight: 600;
+}
+.preguntas summary::-webkit-details-marker { display: none; }
+.preguntas summary::after { content: "+"; font-weight: 300; font-size: 1.6rem; line-height: 1; transition: transform .25s; }
+.preguntas details[open] summary::after { transform: rotate(45deg); }
+.preguntas details p { padding-bottom: 1.3rem; color: var(--tinta-media); max-width: var(--medida); }
+
+/* Cuidados: una línea por cuidado */
+.cuidados { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.cuidados li { border: 1px solid var(--tinta); border-radius: 999px; padding: 0.5rem 1rem; font-size: var(--t-s); font-weight: 500; }
+
+/* ---------- Cierre ---------- */
+.cierre { background: var(--tinta); color: var(--crudo); padding-block: clamp(4.5rem, 10vw, 8rem); }
+.cierre__logo { width: min(15rem, 65%); }
+.cierre h2 {
+  margin-top: 2.5rem; font-family: var(--display); font-weight: 400;
+  font-size: var(--t-xl); line-height: 1.05; max-width: 16ch; text-wrap: balance;
+}
+.cierre h2 em { font-style: italic; }
+.cierre__rejilla { display: grid; gap: 2.5rem; margin-top: 3rem; }
+@media (min-width: 52rem) { .cierre__rejilla { grid-template-columns: 1fr 1fr; } }
+.cierre__bloque { display: grid; gap: 1rem; align-content: start; }
+.cierre__bloque h3 { font-size: var(--t-s); font-weight: 600; color: var(--plata); }
+.cierre__bloque address { font-style: normal; }
+.cierre__acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.cierre a.enlace { color: var(--crudo); text-underline-offset: 4px; }
+.pendiente { font-size: var(--t-xs); color: var(--plata); }
+
+.pie {
+  background: var(--tinta); color: var(--plata); border-top: 1px solid #3a332d;
+  font-size: var(--t-xs); padding-block: 1.5rem calc(1.5rem + 4.5rem);
+}
+.pie .envoltorio { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; justify-content: space-between; }
+.pie a { color: var(--plata); }
+@media (min-width: 52rem) { .pie { padding-bottom: 1.5rem; } }
+
+/* ---------- Reserva fija en móvil ---------- */
+.barra-reserva {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  padding: 0.75rem var(--margen) calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  background: var(--crudo); border-top: 1px solid var(--greige);
+  display: grid; grid-template-columns: 1fr auto; gap: 0.5rem;
+}
+@media (min-width: 52rem) { .barra-reserva { display: none; } }
+
+/* ---------- Único momento de entrada: el titular de portada ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .portada__titular { animation: entra 1s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes entra { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; }
+}
+
+/* ---------- Página de reserva ---------- */
+.reserva { padding-block: clamp(2.5rem, 7vw, 5rem); }
+.reserva__rejilla { display: grid; gap: clamp(2rem, 5vw, 4rem); align-items: start; }
+/* En móvil: título, agenda y después las notas. En escritorio: notas a la izquierda */
+.reserva__rejilla { grid-template-areas: "texto" "agenda" "info"; }
+@media (min-width: 60rem) {
+  .reserva__rejilla { grid-template-columns: 4fr 7fr; grid-template-areas: "texto agenda" "info agenda"; row-gap: 1.75rem; }
+}
+.reserva__texto { grid-area: texto; display: grid; gap: 1rem; min-width: 0; }
+.reserva__info { grid-area: info; display: grid; gap: 1.5rem; justify-items: start; min-width: 0; align-self: start; }
+.reserva__agenda { grid-area: agenda; }
+.reserva h1 {
+  font-family: var(--display); font-weight: 400; font-size: var(--t-xl);
+  line-height: 1.05; letter-spacing: -0.01em;
+}
+.reserva h1 em { font-style: italic; }
+.reserva__intro { color: var(--tinta-media); }
+.reserva__notas { list-style: none; padding: 0; display: grid; gap: 0.6rem; font-size: var(--t-s); }
+.reserva__notas li { padding-left: 1.5rem; position: relative; }
+.reserva__notas li::before { content: "✦"; position: absolute; left: 0; color: var(--plata); }
+.reserva__donde { font-style: normal; font-size: var(--t-s); border-top: 1px solid var(--tinta); padding-top: 1rem; width: 100%; }
+/* El calendario va sobre una "hoja" blanca para que el diseño de Google se integre mejor */
+.reserva__agenda { background: #fff; border: 1px solid var(--greige); padding: 0.5rem; min-width: 0; }
+.reserva__iframe { display: block; width: 100%; height: 760px; border: 0; }
+@media (max-width: 40rem) { .reserva__iframe { height: 900px; } }
+.reserva__alternativa { padding: 0.75rem 0.5rem 0.25rem; font-size: var(--t-xs); color: var(--tinta-media); }
+.pie--reserva { padding-bottom: 1.5rem; }
+
+/* ---------- Palabras en cursiva con brillo de cristal ----------
+   Inspirado en el efecto "shine border", pero aplicado a las letras:
+   un degradado cónico de azules claros que gira despacio dentro de la palabra,
+   como la luz moviéndose dentro de un cristal Swarovski (con un reflejo
+   tornasolado: pequeños destellos rosa y esmeralda, como los cristales aurora boreal).
+   Sobre fondo claro se usan azules más profundos para que se lea bien. */
+@property --giro {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+:root {
+  /* sobre crudo */
+  --cr-1: #2F4C6B; --cr-2: #5F8DB8; --cr-3: #3B6690; --cr-4: #89B4DA; --cr-5: #4C5FA0;
+  --cr-rosa: #B85C8A; --cr-esmeralda: #1F7A5C;
+  /* sobre foto u oscuro */
+  --hi-1: #FFFFFF; --hi-2: #BFDDFB; --hi-3: #EAF5FF; --hi-4: #9FC9F2; --hi-5: #DCD6FA; --hi-6: #C7F0EE;
+  --hi-rosa: #F6C1DD; --hi-esmeralda: #7FE0B8;
+}
+.seccion h2 em, .reserva h1 em { color: var(--cr-1); }
+.portada__titular em, .cierre h2 em { color: var(--hi-2); }
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .seccion h2 em, .reserva h1 em {
+    background-image: conic-gradient(from var(--giro) at 50% 50%,
+      var(--cr-1) 0deg, var(--cr-2) 50deg, var(--cr-rosa) 72deg, var(--cr-3) 95deg, var(--cr-4) 150deg,
+      var(--cr-5) 200deg, var(--cr-esmeralda) 228deg, var(--cr-2) 255deg, var(--cr-3) 310deg, var(--cr-1) 360deg);
+  }
+  .portada__titular em, .cierre h2 em {
+    background-image: conic-gradient(from var(--giro) at 50% 50%,
+      var(--hi-1) 0deg, var(--hi-2) 50deg, var(--hi-rosa) 72deg, var(--hi-3) 95deg, var(--hi-4) 150deg,
+      var(--hi-5) 200deg, var(--hi-esmeralda) 228deg, var(--hi-6) 255deg, var(--hi-2) 310deg, var(--hi-1) 360deg);
+  }
+  .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
+    background-size: 100% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; /* cada línea brilla entera */
+    color: transparent;
+    padding-right: 0.06em; /* que la última letra cursiva no quede cortada */
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
+    animation: giro-cristal 5s linear infinite;
+  }
+  @keyframes giro-cristal { to { --giro: 360deg; } }
+}
+/* Números del proceso a juego */
+.paso__num { color: var(--cr-2); }
+
+/* Fotos */
+.foto { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--greige); }
+.ficha .foto { aspect-ratio: 4 / 5; }
+.mosaico .foto { aspect-ratio: 1; }
+.mosaico .foto:first-child { grid-column: span 2; aspect-ratio: 2 / 1.1; }
+@media (min-width: 52rem) {
+  .mosaico .foto:first-child { grid-row: span 2; aspect-ratio: auto; }
+}
+.sobre__foto.foto { aspect-ratio: 4 / 5; object-position: 50% 25%; }
+
+@media (max-width: 40rem) { .portada { min-height: min(78svh, 40rem); } }
+/* Precios: el precio siempre alineado abajo, aunque los textos tengan distinto largo */
+.precios .ficha { display: flex; flex-direction: column; gap: 0.9rem; }
+.precios .ficha__precio { margin-top: auto; }

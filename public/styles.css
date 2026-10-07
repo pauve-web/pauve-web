@@ -321,7 +321,7 @@ a { color: inherit; }
    Inspirado en el efecto "shine border", pero aplicado a las letras:
    un degradado cónico de azules claros que gira despacio dentro de la palabra,
    como la luz moviéndose dentro de un cristal Swarovski (con un reflejo
-   tornasolado muy sutil, como los cristales aurora boreal).
+   tornasolado: pequeños destellos rosa y esmeralda, como los cristales aurora boreal).
    Sobre fondo claro se usan azules más profundos para que se lea bien. */
 @property --giro {
   syntax: "<angle>";
@@ -331,8 +331,10 @@ a { color: inherit; }
 :root {
   /* sobre crudo */
   --cr-1: #2F4C6B; --cr-2: #5F8DB8; --cr-3: #3B6690; --cr-4: #89B4DA; --cr-5: #4C5FA0;
+  --cr-rosa: #B85C8A; --cr-esmeralda: #1F7A5C;
   /* sobre foto u oscuro */
   --hi-1: #FFFFFF; --hi-2: #BFDDFB; --hi-3: #EAF5FF; --hi-4: #9FC9F2; --hi-5: #DCD6FA; --hi-6: #C7F0EE;
+  --hi-rosa: #F6C1DD; --hi-esmeralda: #7FE0B8;
 }
 .seccion h2 em, .reserva h1 em { color: var(--cr-1); }
 .portada__titular em, .cierre h2 em { color: var(--hi-2); }
@@ -340,11 +342,13 @@ a { color: inherit; }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .seccion h2 em, .reserva h1 em {
     background-image: conic-gradient(from var(--giro) at 50% 50%,
-      var(--cr-1), var(--cr-2), var(--cr-3), var(--cr-4), var(--cr-5), var(--cr-2), var(--cr-1));
+      var(--cr-1) 0deg, var(--cr-2) 50deg, var(--cr-rosa) 72deg, var(--cr-3) 95deg, var(--cr-4) 150deg,
+      var(--cr-5) 200deg, var(--cr-esmeralda) 228deg, var(--cr-2) 255deg, var(--cr-3) 310deg, var(--cr-1) 360deg);
   }
   .portada__titular em, .cierre h2 em {
     background-image: conic-gradient(from var(--giro) at 50% 50%,
-      var(--hi-1), var(--hi-2), var(--hi-6), var(--hi-3), var(--hi-4), var(--hi-5), var(--hi-1));
+      var(--hi-1) 0deg, var(--hi-2) 50deg, var(--hi-rosa) 72deg, var(--hi-3) 95deg, var(--hi-4) 150deg,
+      var(--hi-5) 200deg, var(--hi-esmeralda) 228deg, var(--hi-6) 255deg, var(--hi-2) 310deg, var(--hi-1) 360deg);
   }
   .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
     background-size: 100% 100%;

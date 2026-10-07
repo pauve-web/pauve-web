@@ -62,7 +62,10 @@
 
   <!-- PORTADA: titular sobre la foto -->
   <section class="portada">
-    <img class="portada__foto" src="img/portada.jpg" srcset="img/portada-900.jpg 900w, img/portada.jpg 1536w" sizes="100vw" width="1536" height="1024" alt="Sonrisa con una gema dental Swarovski en un diente superior" fetchpriority="high">
+    <picture>
+      <source media="(max-width: 40rem)" srcset="img/portada-movil.jpg">
+      <img class="portada__foto" src="img/portada.jpg" srcset="img/portada-900.jpg 900w, img/portada.jpg 1536w" sizes="100vw" width="1536" height="1024" alt="Sonrisa con una gema dental Swarovski en un diente superior" fetchpriority="high">
+    </picture>
     <div class="envoltorio portada__contenido">
       <h1>
         <span class="portada__seo">Gemas dentales en Dos Hermanas, Sevilla</span>

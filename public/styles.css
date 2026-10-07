@@ -368,12 +368,12 @@ a { color: inherit; }
 .paso__num { color: var(--cr-2); }
 
 /* Fotos */
-.foto { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--greige); }
+.foto { display: block; width: 100%; height: auto; object-fit: cover; background: var(--greige); }
 .ficha .foto { aspect-ratio: 4 / 5; }
 .mosaico .foto { aspect-ratio: 1; }
 .mosaico .foto:first-child { grid-column: span 2; aspect-ratio: 2 / 1.1; }
 @media (min-width: 52rem) {
-  .mosaico .foto:first-child { grid-row: span 2; aspect-ratio: auto; }
+  .mosaico .foto:first-child { grid-row: span 2; aspect-ratio: auto; height: 100%; }
 }
 .sobre__foto.foto { aspect-ratio: 4 / 5; object-position: 50% 25%; }
 
@@ -381,3 +381,6 @@ a { color: inherit; }
 /* Precios: el precio siempre alineado abajo, aunque los textos tengan distinto largo */
 .precios .ficha { display: flex; flex-direction: column; gap: 0.9rem; }
 .precios .ficha__precio { margin-top: auto; }
+
+/* Móvil: foto de portada propia, centrada en la sonrisa */
+@media (max-width: 40rem) { .portada__foto { object-position: 72% 45%; } }

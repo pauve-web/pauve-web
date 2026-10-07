@@ -111,6 +111,7 @@ a { color: inherit; }
 .portada {
   position: relative; isolation: isolate;
   min-height: min(92svh, 54rem);
+  /* en móvil, menos alto para que la foto no se recorte tanto */
   display: grid; align-items: end;
   color: var(--crudo);
   background: linear-gradient(160deg, #5a4d42 0%, var(--foto-oscura) 55%, var(--tinta) 100%);
@@ -118,6 +119,7 @@ a { color: inherit; }
 .portada__foto {
   position: absolute; inset: 0; z-index: -2;
   width: 100%; height: 100%; object-fit: cover;
+  object-position: 62% 40%; /* mantiene la sonrisa a la vista al recortar en móvil */
 }
 .portada__aviso {
   position: absolute; top: 1.25rem; right: var(--margen);
@@ -314,3 +316,40 @@ a { color: inherit; }
 @media (max-width: 40rem) { .reserva__iframe { height: 900px; } }
 .reserva__alternativa { padding: 0.75rem 0.5rem 0.25rem; font-size: var(--t-xs); color: var(--tinta-media); }
 .pie--reserva { padding-bottom: 1.5rem; }
+
+/* ---------- Palabras en cursiva con brillo de gema ----------
+   Las cursivas de los titulares llevan un tono oro/champán y un destello
+   que las recorre de vez en cuando, como la luz sobre un cristal.
+   Sobre fondo claro se usa un oro oscuro (legible); sobre fondo oscuro, champán. */
+:root {
+  --oro-base: #8C6B32;      /* sobre crudo: contraste suficiente para titulares */
+  --oro-destello: #E8D3A0;
+  --champan-base: #D9C08A;  /* sobre foto u oscuro */
+  --champan-destello: #FFF7E2;
+}
+.seccion h2 em, .reserva h1 em { color: var(--oro-base); }
+.portada__titular em, .cierre h2 em { color: var(--champan-base); }
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
+    --b: var(--oro-base); --d: var(--oro-destello);
+    background-image: linear-gradient(105deg, var(--b) 0%, var(--b) 42%, var(--d) 50%, var(--b) 58%, var(--b) 100%);
+    background-size: 300% 100%;
+    background-position: 100% 0;
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    padding-right: 0.06em; /* que la última letra cursiva no quede cortada */
+  }
+  .portada__titular em, .cierre h2 em { --b: var(--champan-base); --d: var(--champan-destello); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .seccion h2 em, .reserva h1 em, .portada__titular em, .cierre h2 em {
+    animation: destello 6s ease-in-out infinite;
+  }
+  .portada__titular em { animation-delay: 1.2s; }
+  @keyframes destello {
+    0%, 55% { background-position: 100% 0; }
+    85%, 100% { background-position: 0% 0; }
+  }
+}
+@media (max-width: 40rem) { .portada { min-height: min(78svh, 40rem); } }

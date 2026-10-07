@@ -59,7 +59,7 @@ body {
   font-weight: 450;
   line-height: 1.55;
 }
-img { max-width: 100%; display: block; }
+img { max-width: 100%; height: auto; display: block; }
 h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--dorado); outline-offset: 3px; }

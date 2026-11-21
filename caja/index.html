@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="theme-color" content="#7b2d55">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#231b26" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Caja PBxP">
@@ -41,6 +42,10 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 header .wrap{padding-block:10px;display:flex;flex-direction:column;gap:10px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 h1{font-family:var(--display);font-weight:700;font-size:1.25rem;margin:0;letter-spacing:-.01em}
+h1.brand{display:flex;align-items:flex-end;gap:2px}
+h1.brand img{height:46px;width:auto;display:block}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) h1.brand img{filter:invert(1)}}
+:root[data-theme="dark"] h1.brand img{filter:invert(1)}
 h1 small{font-family:var(--body);font-weight:500;color:var(--muted);font-size:.8rem;margin-left:6px}
 .who{display:flex;flex-direction:column;gap:4px;min-width:0}
 .profile{border:0;background:var(--accent-soft);color:var(--fg);border-radius:999px;padding:4px 10px;font-size:.8rem;font-weight:600;text-align:left;width:fit-content}
@@ -159,7 +164,7 @@ body.is-admin .team-only{display:none}
 <header>
   <div class="wrap">
     <div class="top">
-      <div class="who"><h1>PB x Pauvé<small>caja de joyitas</small></h1>
+      <div class="who"><h1 class="brand"><img src="logo.png" alt="PB x Pauvè joyitas" width="640" height="252"></h1>
         <button class="profile" id="logout" title="Cambiar de perfil"><span id="profileTxt">…</span> · <u>cambiar</u></button></div>
       <div class="today" id="todayBox"><b id="todayTotal">0,00 €</b><span id="todayCount">0 piezas hoy</span></div>
     </div>

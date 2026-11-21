@@ -96,7 +96,7 @@ if ($a === 'login') {
   $role = null; $ownerId = null;
   /* each owner (Paula, Patricia…) has her own password; the team shares one */
   foreach ($pdo->query('SELECT id,name,hash FROM owners') as $o) {
-    if (password_verify($pw, $o['hash'])) { $role = 'admin'; $ownerId = (int)$o['id']; $name = $o['name']; break; }
+    if ($o['hash'] !== null && password_verify($pw, $o['hash'])) { $role = 'admin'; $ownerId = (int)$o['id']; $name = $o['name']; break; }
   }
   if (!$role && password_verify($pw, (string)cfg('team_hash'))) $role = 'team';
   if (!$role) { sleep(1); fail('Contraseña incorrecta.', 401); }
@@ -124,6 +124,18 @@ switch ($a) {
     out(['ok' => true]);
 
   case 'state':
+    /* agreed split (21 nov 2026): Patricia 58 % and Paula 42 % of the profit. Done once; afterwards
+       the owners change it themselves. Patricia exists without a password until one is given to her. */
+    if (cfg('reparto_v1') === null) {
+      $all = $pdo->query('SELECT id,name,share FROM owners ORDER BY id')->fetchAll();
+      $patri = null; foreach ($all as $o) if (stripos($o['name'], 'patri') === 0) $patri = $o;
+      if (!$patri) { $pdo->prepare('INSERT INTO owners(name,hash,share) VALUES(?,NULL,58)')->execute(['Patricia']); }
+      else $pdo->prepare('UPDATE owners SET share=58 WHERE id=?')->execute([$patri['id']]);
+      foreach ($all as $o) if (!$patri || $o['id'] !== $patri['id']) {
+        $pdo->prepare('UPDATE owners SET share=? WHERE id=?')->execute([stripos($o['name'], 'paula') === 0 ? 42 : 0, $o['id']]);
+      }
+      setCfg('reparto_v1', '1');
+    }
     $products = $pdo->query('SELECT * FROM products')->fetchAll();
     foreach ($products as &$p) { $p['ref'] = (int)$p['ref']; $p['stock'] = (int)$p['stock']; $p['hidden'] = (bool)$p['hidden'];
       $p['cost'] = $p['cost'] === null ? null : (float)$p['cost']; $p['price'] = $p['price'] === null ? null : (float)$p['price']; }
@@ -137,8 +149,8 @@ switch ($a) {
     if ($until !== '' && date('Y-m-d') > $until) { setCfg('dto', '0'); setCfg('dto_until', ''); $until = ''; }
     $res = ['role' => $me['role'], 'name' => $me['name'], 'dto' => (float)cfg('dto', '0'), 'dtoUntil' => $until, 'products' => $products, 'sales' => $sales];
     if ($admin) {
-      $res['owners'] = $pdo->query('SELECT id,name,share FROM owners ORDER BY id')->fetchAll();
-      foreach ($res['owners'] as &$o) { $o['id'] = (int)$o['id']; $o['share'] = $o['share'] === null ? null : (float)$o['share']; }
+      $res['owners'] = $pdo->query('SELECT id,name,share,(hash IS NOT NULL) AS canlogin FROM owners ORDER BY id')->fetchAll();
+      foreach ($res['owners'] as &$o) { $o['id'] = (int)$o['id']; $o['share'] = $o['share'] === null ? null : (float)$o['share']; $o['canlogin'] = (bool)$o['canlogin']; }
     }
     out($res);
 
@@ -244,13 +256,25 @@ switch ($a) {
 
   case 'owners':
     needAdmin();
-    out(['owners' => $pdo->query('SELECT id,name,share FROM owners ORDER BY id')->fetchAll(), 'me' => (int)$me['owner_id']]);
+    out(['owners' => $pdo->query('SELECT id,name,share,(hash IS NOT NULL) AS canlogin FROM owners ORDER BY id')->fetchAll(), 'me' => (int)$me['owner_id']]);
+
+  case 'ownerpassword':
+    /* give a password to an owner who has none yet (e.g. Patricia, created by the split setup) */
+    needAdmin();
+    $b = body(); $pw = (string)($b['password'] ?? '');
+    if (txtlen($pw) < 8) fail('La contraseña necesita al menos 8 caracteres.');
+    $s = $pdo->prepare('SELECT hash FROM owners WHERE id=?'); $s->execute([(int)($b['id'] ?? 0)]); $h = $s->fetchColumn();
+    if ($h === false) fail('No encuentro a esa dueña.');
+    if ($h !== null) fail('Esa dueña ya tiene contraseña; puede cambiarla ella al entrar.');
+    if (password_verify($pw, (string)cfg('team_hash'))) fail('Esa es la contraseña del equipo. Elige otra.');
+    $pdo->prepare('UPDATE owners SET hash=? WHERE id=?')->execute([password_hash($pw, PASSWORD_DEFAULT), (int)$b['id']]);
+    out(['ok' => true]);
 
   case 'addowner':
     needAdmin();
     $b = body(); $n = trim(txtcut((string)($b['name'] ?? ''), 0, 40)); $pw = (string)($b['password'] ?? '');
     if ($n === '' || txtlen($pw) < 8) fail('Pon su nombre y una contraseña de al menos 8 caracteres.');
-    foreach ($pdo->query('SELECT hash FROM owners') as $o) if (password_verify($pw, $o['hash'])) fail('Esa contraseña ya la usa otra dueña. Elige otra.');
+    foreach ($pdo->query('SELECT hash FROM owners WHERE hash IS NOT NULL') as $o) if (password_verify($pw, $o['hash'])) fail('Esa contraseña ya la usa otra dueña. Elige otra.');
     if (password_verify($pw, (string)cfg('team_hash'))) fail('Esa es la contraseña del equipo. Elige otra.');
     $pdo->prepare('INSERT INTO owners(name,hash) VALUES(?,?)')->execute([$n, password_hash($pw, PASSWORD_DEFAULT)]);
     out(['ok' => true]);

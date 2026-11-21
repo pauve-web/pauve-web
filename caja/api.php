@@ -48,7 +48,10 @@ CREATE TABLE IF NOT EXISTS owners (id INTEGER PRIMARY KEY, name TEXT, hash TEXT)
 CREATE TABLE IF NOT EXISTS products (ref INTEGER PRIMARY KEY, name TEXT, cat TEXT, cost REAL, price REAL, stock INTEGER, photo TEXT, hidden INTEGER DEFAULT 0, added TEXT);
 CREATE TABLE IF NOT EXISTS sales (id TEXT PRIMARY KEY, t TEXT, ref INTEGER, name TEXT, cat TEXT, list REAL, dto REAL, price REAL, cost REAL, manual INTEGER, seller TEXT);");
 
-try { $pdo->exec('ALTER TABLE tokens ADD COLUMN owner_id INTEGER'); } catch (Throwable $e) { /* already there */ }
+/* columns added after the first version: add them if the database is older */
+foreach (['ALTER TABLE tokens ADD COLUMN owner_id INTEGER', 'ALTER TABLE sales ADD COLUMN pay TEXT', 'ALTER TABLE owners ADD COLUMN share REAL'] as $sql) {
+  try { $pdo->exec($sql); } catch (Throwable $e) { /* already there */ }
+}
 function cfg(string $k, $def = null) { global $pdo; $s = $pdo->prepare('SELECT v FROM config WHERE k=?'); $s->execute([$k]); $v = $s->fetchColumn(); return $v === false ? $def : $v; }
 function setCfg(string $k, string $v): void { global $pdo; $pdo->prepare('INSERT INTO config(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v')->execute([$k, $v]); }
 function body(): array { $j = json_decode(file_get_contents('php://input') ?: '[]', true); return is_array($j) ? $j : []; }
@@ -129,7 +132,15 @@ switch ($a) {
     $sales = $s->fetchAll();
     foreach ($sales as &$x) { $x['ref'] = $x['ref'] === null ? null : (int)$x['ref']; foreach (['list','dto','price'] as $k) $x[$k] = (float)$x[$k];
       $x['cost'] = $x['cost'] === null ? null : (float)$x['cost']; $x['manual'] = (bool)$x['manual']; }
-    out(['role' => $me['role'], 'name' => $me['name'], 'dto' => (float)cfg('dto', '0'), 'products' => $products, 'sales' => $sales]);
+    /* a discount with an end date switches itself off once that day is over */
+    $until = (string)cfg('dto_until', '');
+    if ($until !== '' && date('Y-m-d') > $until) { setCfg('dto', '0'); setCfg('dto_until', ''); $until = ''; }
+    $res = ['role' => $me['role'], 'name' => $me['name'], 'dto' => (float)cfg('dto', '0'), 'dtoUntil' => $until, 'products' => $products, 'sales' => $sales];
+    if ($admin) {
+      $res['owners'] = $pdo->query('SELECT id,name,share FROM owners ORDER BY id')->fetchAll();
+      foreach ($res['owners'] as &$o) { $o['id'] = (int)$o['id']; $o['share'] = $o['share'] === null ? null : (float)$o['share']; }
+    }
+    out($res);
 
   case 'sell':
     $b = body();
@@ -137,9 +148,10 @@ switch ($a) {
     $cat = in_array($b['cat'] ?? '', CATS, true) ? $b['cat'] : fail('Tipo no válido');
     $price = num($b['price'] ?? null); if ($price === null || $price < 0) fail('Precio no válido');
     $ref = isset($b['ref']) && $b['ref'] !== null ? (int)$b['ref'] : null;
-    $pdo->prepare('INSERT OR IGNORE INTO sales VALUES(?,?,?,?,?,?,?,?,?,?,?)')->execute([
+    $pay = in_array($b['pay'] ?? null, ['efectivo', 'tarjeta'], true) ? $b['pay'] : null;
+    $pdo->prepare('INSERT OR IGNORE INTO sales(id,t,ref,name,cat,list,dto,price,cost,manual,seller,pay) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')->execute([
       $id, gmdate('c'), $ref, $b['name'] !== null ? txtcut((string)$b['name'], 0, 80) : null, $cat,
-      num($b['list'] ?? $price) ?? $price, num($b['dto'] ?? 0) ?? 0, $price, num($b['cost'] ?? null), !empty($b['manual']) ? 1 : 0, $me['name']]);
+      num($b['list'] ?? $price) ?? $price, num($b['dto'] ?? 0) ?? 0, $price, num($b['cost'] ?? null), !empty($b['manual']) ? 1 : 0, $me['name'], $pay]);
     out(['ok' => true, 'id' => $id]);
 
   case 'delsale':
@@ -158,10 +170,30 @@ switch ($a) {
     $pdo->prepare('UPDATE sales SET ref=?, name=?, cost=? WHERE id=?')->execute([(int)$b['ref'], $p['name'], $p['cost'], (string)($b['id'] ?? '')]);
     out(['ok' => true]);
 
+  case 'pay':
+    $b = body(); $pay = in_array($b['pay'] ?? null, ['efectivo', 'tarjeta'], true) ? $b['pay'] : null;
+    $pdo->prepare('UPDATE sales SET pay=? WHERE id=?')->execute([$pay, (string)($b['id'] ?? '')]);
+    out(['ok' => true]);
+
   case 'dto':
     needAdmin();
-    $v = num(body()['dto'] ?? 0); if ($v === null || $v < 0 || $v > 90) fail('Descuento no válido');
-    setCfg('dto', (string)$v); out(['ok' => true]);
+    $b = body();
+    $v = num($b['dto'] ?? 0); if ($v === null || $v < 0 || $v > 90) fail('Descuento no válido');
+    $until = (string)($b['until'] ?? '');
+    if ($until !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $until)) fail('Fecha de fin no válida');
+    if ($until !== '' && $until < date('Y-m-d')) fail('La fecha de fin ya ha pasado.');
+    setCfg('dto', (string)$v); setCfg('dto_until', $v > 0 ? $until : '');
+    out(['ok' => true]);
+
+  case 'share':
+    needAdmin();
+    $shares = body()['shares'] ?? null;
+    if (!is_array($shares)) fail('Datos no válidos');
+    $sum = 0; foreach ($shares as $v) { $n = num($v); if ($n === null || $n < 0) fail('Porcentaje no válido'); $sum += $n; }
+    if (abs($sum - 100) > 0.01) fail('Los porcentajes tienen que sumar 100.');
+    $up = $pdo->prepare('UPDATE owners SET share=? WHERE id=?');
+    foreach ($shares as $id => $v) $up->execute([num($v), (int)$id]);
+    out(['ok' => true]);
 
   case 'photo':
     /* team and Paula can both add photos */
@@ -212,7 +244,7 @@ switch ($a) {
 
   case 'owners':
     needAdmin();
-    out(['owners' => $pdo->query('SELECT id,name FROM owners ORDER BY id')->fetchAll(), 'me' => (int)$me['owner_id']]);
+    out(['owners' => $pdo->query('SELECT id,name,share FROM owners ORDER BY id')->fetchAll(), 'me' => (int)$me['owner_id']]);
 
   case 'addowner':
     needAdmin();
@@ -258,11 +290,11 @@ switch ($a) {
     header('Content-Disposition: attachment; filename="ventas-pb-pauve-' . date('Y-m-d') . '.csv"');
     $f = fopen('php://output', 'w');
     fwrite($f, "\xEF\xBB\xBF");
-    fputcsv($f, ['Fecha', 'Hora', 'Tipo', 'Producto', 'Referencia', 'Precio etiqueta', 'Descuento %', 'Cobrado', 'Coste', 'Vendido por'], ';');
+    fputcsv($f, ['Fecha', 'Hora', 'Tipo', 'Producto', 'Referencia', 'Precio etiqueta', 'Descuento %', 'Cobrado', 'Coste', 'Vendido por', 'Pago'], ';');
     foreach ($pdo->query('SELECT * FROM sales ORDER BY t') as $x) {
       $ts = strtotime($x['t']);
       $nf = fn($v) => $v === null ? '' : str_replace('.', ',', (string)$v);
-      fputcsv($f, [date('d/m/Y', $ts), date('H:i', $ts), $x['cat'], $x['name'] ?? 'SIN CONCRETAR', $x['ref'] ?? '', $nf($x['list']), $nf($x['dto']), $nf($x['price']), $nf($x['cost']), $x['seller']], ';');
+      fputcsv($f, [date('d/m/Y', $ts), date('H:i', $ts), $x['cat'], $x['name'] ?? 'SIN CONCRETAR', $x['ref'] ?? '', $nf($x['list']), $nf($x['dto']), $nf($x['price']), $nf($x['cost']), $x['seller'], $x['pay'] ?? ''], ';');
     }
     exit;
 }

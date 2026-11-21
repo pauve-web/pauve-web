@@ -91,7 +91,23 @@ section h2{font-family:var(--display);font-weight:500;font-size:1.05rem;margin:0
 .ghost{background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-weight:600}
 /* toast */
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--fg);color:var(--bg);border-radius:14px;padding:12px 12px 12px 16px;display:flex;gap:12px;align-items:center;width:min(92vw,520px);box-shadow:0 6px 20px rgb(0 0 0 / .25)}
-.toast span{flex:1;min-width:0}
+.toast{flex-wrap:wrap}
+.toast #toastMsg{flex:1 1 60%;min-width:0}
+.paybtns{display:flex;gap:8px;width:100%}
+.paybtns[hidden]{display:none}
+.toast .paybtns button{flex:1}
+.toast .paybtns button[aria-pressed="true"]{background:var(--bg);color:var(--fg)}
+.badge{display:inline-block;min-width:1.4em;padding:0 5px;margin-left:4px;border-radius:999px;background:var(--warn);color:#fff;font-size:.72rem;line-height:1.4em}
+.paychip{border:1px solid var(--line);background:var(--bg);border-radius:999px;font-size:.72rem;padding:1px 8px;margin-top:3px;color:var(--muted)}
+.paychip.set{color:var(--fg);border-color:var(--accent)}
+.dtoend{font-size:.78rem;color:var(--muted)}
+.rows{display:flex;flex-direction:column;gap:6px}
+.kv{display:flex;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-variant-numeric:tabular-nums}
+.kv span:first-child{min-width:0}
+.kv b{white-space:nowrap}
+.shoot{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.shoot .thumb{width:160px;height:160px}
+section h2 small{font-family:var(--body);font-size:.8rem;color:var(--muted);font-weight:400}
 .toast button{background:transparent;border:1.5px solid currentColor;color:inherit;border-radius:10px;padding:6px 10px;font-weight:700}
 /* day view */
 .dayhead{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -131,11 +147,13 @@ body.is-admin .team-only{display:none}
       <button class="pill" data-dto="0" id="dto0">Sin dto.</button>
       <button class="pill" data-dto="30" id="dto30">−30 %</button>
       <button class="pill" data-dto="custom" id="dtoC">Otro %</button>
+      <span class="dtoend" id="dtoEnd"></span>
     </div>
     <div class="tabs" role="tablist">
       <button role="tab" id="tabSell" aria-selected="true">Vender</button>
       <button role="tab" id="tabDay" aria-selected="false">Ventas</button>
-      <button role="tab" id="tabProd" aria-selected="false">Productos</button>
+      <button role="tab" id="tabProd" aria-selected="false">Productos<span class="badge" id="lowBadge" hidden></span></button>
+      <button role="tab" id="tabRes" aria-selected="false" hidden>Resumen</button>
     </div>
   </div>
 </header>
@@ -160,6 +178,7 @@ body.is-admin .team-only{display:none}
       <div><b id="dTotal">0 €</b><span>cobrado</span></div>
       <div><b id="dProfit">0 €</b><span>beneficio aprox.</span></div>
     </div>
+    <p class="note" id="dPay"></p>
     <div id="pendBanner" class="banner warn" hidden></div>
     <div id="sales" class="list"></div>
     <button class="primary copy" id="copyBtn">Copiar resumen para enviar a Paula</button>
@@ -167,6 +186,7 @@ body.is-admin .team-only{display:none}
   </div>
   <div class="wrap" id="prodView" hidden>
     <button class="primary" id="newProd">+ Nuevo producto</button>
+    <button class="ghost" id="shootBtn">Hacer fotos en serie</button>
     <div id="adminTools" hidden style="display:flex;flex-direction:column;gap:8px">
       <label class="ghost" for="impFile" style="text-align:center">Cargar lista de productos (archivo .json)</label>
       <input id="impFile" type="file" accept=".json,application/json" hidden>
@@ -184,6 +204,23 @@ body.is-admin .team-only{display:none}
     <div id="prodList" class="list"></div>
     <button class="ghost" id="copyLow">Copiar lista para reponer</button>
   </div>
+  <div class="wrap" id="resView" hidden>
+    <div class="dayhead">
+      <button class="x" id="prevMonth" aria-label="Mes anterior">‹</button>
+      <strong id="monthLabel"></strong>
+      <button class="x" id="nextMonth" aria-label="Mes siguiente">›</button>
+    </div>
+    <div class="sum">
+      <div><b id="mPieces">0</b><span>piezas</span></div>
+      <div><b id="mTotal">0 €</b><span>cobrado</span></div>
+      <div><b id="mProfit">0 €</b><span>beneficio</span></div>
+    </div>
+    <section><h2>Cómo se cobró</h2><div class="rows" id="mPay"></div></section>
+    <section><h2>Reparto del beneficio</h2><div class="rows" id="mShare"></div></section>
+    <section><h2>Por tipo</h2><div class="rows" id="mCats"></div></section>
+    <section><h2>Más vendidas <small>este mes</small></h2><div class="rows" id="mTop"></div></section>
+    <section><h2>Piezas paradas <small>con stock y sin ventas en 60 días</small></h2><div class="rows" id="mStill"></div></section>
+  </div>
 </main>
 
 <div class="scrim" id="scrim" hidden>
@@ -193,7 +230,8 @@ body.is-admin .team-only{display:none}
   </div>
 </div>
 
-<div class="toast" id="toast" hidden role="status"><span id="toastMsg"></span><button id="undoBtn">Deshacer</button></div>
+<div class="toast" id="toast" hidden role="status"><span id="toastMsg"></span><button id="undoBtn">Deshacer</button>
+  <div class="paybtns" id="payBtns" hidden><button data-pay="efectivo" aria-pressed="false">Efectivo</button><button data-pay="tarjeta" aria-pressed="false">Tarjeta</button></div></div>
 
 <div class="scrim" id="gate" hidden style="align-items:center">
   <form class="sheet" id="gateForm" style="border-radius:20px;max-width:420px;margin:16px" autocomplete="on">
@@ -217,7 +255,7 @@ const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""
 const newId = () => (Date.now().toString(36)+Math.random().toString(36).slice(2,10)).slice(0,20);
 
 /* ---------- server ---------- */
-let PRODUCTS = [], sales = [], dto = 0, role = null, myName = "";
+let PRODUCTS = [], sales = [], dto = 0, dtoUntil = "", owners = [], role = null, myName = "";
 const isAdmin = () => role === "admin";
 function warn(msg){ $("storeWarn").textContent = msg; $("storeWarn").hidden = !msg; }
 async function api(a, data){
@@ -236,7 +274,7 @@ async function api(a, data){
 }
 async function load(){
   const j = await api("state");
-  role = j.role; myName = j.name; dto = j.dto; PRODUCTS = j.products; sales = j.sales;
+  role = j.role; myName = j.name; dto = j.dto; dtoUntil = j.dtoUntil || ""; owners = j.owners || []; PRODUCTS = j.products; sales = j.sales;
   $("loadNote").hidden = true;
   $("gate").hidden = true;
   document.body.classList.toggle("is-admin", isAdmin());
@@ -304,18 +342,24 @@ function renderDto(){
   $("dto30").setAttribute("aria-pressed", dto===30);
   $("dtoC").setAttribute("aria-pressed", custom);
   $("dtoC").textContent = custom ? "−"+dto+" %" : "Otro %";
+  $("dtoEnd").textContent = dto && dtoUntil ? "hasta el "+new Date(dtoUntil+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"short"}) : "";
   document.querySelectorAll("[data-dto]").forEach(b=>{ b.disabled = !isAdmin() && b.getAttribute("aria-pressed")!=="true"; });
 }
-async function setDto(v){
+async function setDto(v, until){
   if(!isAdmin()){ showToast("El descuento solo lo cambian las dueñas."); return; }
-  const old = dto; dto = v; refresh();
-  try{ await api("dto",{dto:v}); }catch(e){ dto = old; refresh(); }
+  const old = [dto, dtoUntil]; dto = v; dtoUntil = v ? (until||"") : ""; refresh();
+  try{ await api("dto",{dto:v, until:dtoUntil}); }catch(e){ [dto, dtoUntil] = old; refresh(); showToast($("storeWarn").textContent || "No se ha podido cambiar."); }
 }
 document.querySelectorAll("[data-dto]").forEach(b=>b.onclick=()=>{
-  if(b.dataset.dto==="custom"){
-    const body=$("sheetBody"); openSheet("Descuento personalizado");
-    body.innerHTML = `<div class="field"><label class="lbl" for="dIn">Porcentaje de descuento</label><input id="dIn" type="number" inputmode="numeric" min="1" max="90" value="${dto&&dto!==30?dto:20}"></div><button class="primary" id="dOk">Aplicar a todas las ventas</button><p class="note">Se aplica en todos los móviles hasta que lo quites.</p>`;
-    $("dOk").onclick=()=>{ const v=Math.round(Number($("dIn").value)); if(v>0&&v<=90){ closeSheet(); setDto(v); } };
+  if(b.dataset.dto!=="0"){
+    if(!isAdmin()){ showToast("El descuento solo lo cambian las dueñas."); return; }
+    const pre = b.dataset.dto==="30" ? 30 : (dto&&dto!==30? dto : 20);
+    const body=$("sheetBody"); openSheet("Descuento");
+    body.innerHTML = `<div class="field"><label class="lbl" for="dIn">Porcentaje de descuento</label><input id="dIn" type="number" inputmode="numeric" min="1" max="90" value="${pre}"></div>
+      <div class="field"><label class="lbl" for="dUntil">Último día del descuento (opcional)</label><input id="dUntil" type="date" min="${dayKey(new Date())}" value="${dtoUntil}"></div>
+      <button class="primary" id="dOk">Aplicar a todas las ventas</button>
+      <p class="note">Se aplica en todos los móviles. Si pones fecha, se quita solo al acabar ese día.</p>`;
+    $("dOk").onclick=()=>{ const v=Math.round(Number($("dIn").value)); const until=$("dUntil").value; if(v>0&&v<=90){ closeSheet(); setDto(v, until); } };
     return;
   }
   setDto(Number(b.dataset.dto));
@@ -399,20 +443,34 @@ function openOther(){
 }
 
 /* selling: shown at once, then saved; if saving fails it is taken back out */
-let lastId = null, toastT = null;
+let lastId = null, toastT = null, pendingSell = Promise.resolve();
 async function sell(p){
   const charged = p.manual ? p.price : withDto(p.price);
   const s = {id:newId(), t:new Date().toISOString(), ref:p.ref, name:p.name, cat:p.cat, list:p.price, dto:p.manual?0:dto,
     price:charged, cost:p.cost ?? null, manual:!!p.manual, seller:myName};
   sales.push(s); lastId = s.id; closeSheet(); refresh();
-  showToast(`Apuntado: ${p.name? p.name : p.cat+" "+eurShort(p.price)+" (sin concretar)"} · ${eur(charged)}`, true);
-  try{ await api("sell", s); }
+  const prod = p.ref!=null ? PRODUCTS.find(x=>x.ref===p.ref) : null;
+  const lowNote = prod && left(prod)<=1 ? ` · ${left(prod)<=0? "Era la última" : "Queda 1"}: anotada para reponer` : "";
+  showToast(`Apuntado: ${p.name? p.name : p.cat+" "+eurShort(p.price)+" (sin concretar)"} · ${eur(charged)}${lowNote}`, true, true);
+  pendingSell = api("sell", s);
+  try{ await pendingSell; }
   catch(e){ sales = sales.filter(x=>x.id!==s.id); refresh(); $("toast").hidden = true; }
 }
-function showToast(msg, undo){
-  $("toastMsg").textContent = msg; $("undoBtn").hidden = !undo; $("toast").hidden=false;
-  clearTimeout(toastT); toastT = setTimeout(()=>{$("toast").hidden=true;}, 6000);
+function showToast(msg, undo, pay){
+  $("toastMsg").textContent = msg; $("undoBtn").hidden = !undo; $("payBtns").hidden = !pay; $("toast").hidden=false;
+  document.querySelectorAll("#payBtns button").forEach(b=>b.setAttribute("aria-pressed","false"));
+  clearTimeout(toastT); toastT = setTimeout(()=>{$("toast").hidden=true;}, pay? 9000 : 6000);
 }
+async function setPay(id, pay){
+  const s = sales.find(x=>x.id===id); if(!s) return;
+  const old = s.pay; s.pay = pay; refresh();
+  try{ await pendingSell.catch(()=>{}); await api("pay",{id, pay}); }catch(e){ s.pay = old; refresh(); }
+}
+document.querySelectorAll("#payBtns button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#payBtns button").forEach(x=>x.setAttribute("aria-pressed", x===b));
+  if(lastId) setPay(lastId, b.dataset.pay);
+  clearTimeout(toastT); toastT = setTimeout(()=>{$("toast").hidden=true;}, 1500);
+});
 async function delSale(id){
   const keep = sales; sales = sales.filter(s=>s.id!==id); refresh();
   try{ await api("delsale",{id}); }catch(e){ sales = keep; refresh(); }
@@ -455,6 +513,8 @@ function renderDay(){
   const tot = ds.reduce((a,s)=>a+s.price,0);
   const prof = ds.reduce((a,s)=>a+(s.cost!=null? s.price-s.cost : 0),0);
   $("dPieces").textContent = ds.length; $("dTotal").textContent = eurShort(round2(tot)); $("dProfit").textContent = eurShort(round2(prof));
+  const byPay = k => round2(ds.filter(s=>(s.pay||null)===k).reduce((a,s)=>a+s.price,0));
+  $("dPay").textContent = ds.length ? `Efectivo ${eur(byPay("efectivo"))} · Tarjeta ${eur(byPay("tarjeta"))}${byPay(null)? ` · Sin indicar ${eur(byPay(null))}`:""}` : "";
   const pend = ds.filter(s=>!s.ref && !s.manual).length;
   $("pendBanner").hidden = !pend;
   $("pendBanner").textContent = `${pend} ${pend===1?"venta":"ventas"} sin concretar la pieza. Toca «¿Cuál fue?» cuando tengas un momento, para que el stock cuadre.`;
@@ -466,11 +526,15 @@ function renderDay(){
     const time = new Date(s.t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
     const canDel = isAdmin() || recent(s.t);
     row.innerHTML = `<span class="t">${time}</span>
-      <span class="w">${esc(label(s))}<small>${esc(s.cat)}${s.ref? " · ref "+s.ref:""}${s.seller? " · "+esc(s.seller):""}</small>${(!s.ref&&!s.manual)?`<button class="tag" data-assign="${s.id}">¿Cuál fue?</button>`:""}</span>
+      <span class="w">${esc(label(s))}<small>${esc(s.cat)}${s.ref? " · ref "+s.ref:""}${s.seller? " · "+esc(s.seller):""}</small><button class="paychip${s.pay?" set":""}" data-pay="${s.id}">${s.pay==="tarjeta"?"Tarjeta":s.pay==="efectivo"?"Efectivo":"¿Efectivo o tarjeta?"}</button>${(!s.ref&&!s.manual)?`<button class="tag" data-assign="${s.id}">¿Cuál fue?</button>`:""}</span>
       <span class="p">${eur(s.price)}${s.dto?`<small>−${s.dto} % de ${eurShort(s.list)}</small>`:""}</span>
       ${canDel? `<button class="del" data-del="${s.id}" aria-label="Borrar venta">×</button>` : "<span></span>"}`;
     box.appendChild(row);
   }
+  box.querySelectorAll("button[data-pay]").forEach(b=>b.onclick=()=>{
+    const s = sales.find(x=>x.id===b.dataset.pay); if(!s) return;
+    setPay(s.id, s.pay==="efectivo" ? "tarjeta" : s.pay==="tarjeta" ? null : "efectivo");
+  });
   box.querySelectorAll("[data-assign]").forEach(b=>b.onclick=()=>{
     const s = sales.find(x=>x.id===b.dataset.assign); const g = groups[s.cat+"|"+s.list];
     if(!g) return; openGroup(g,true); assignId = s.id;
@@ -489,7 +553,7 @@ function copyText(txt, btn, okLabel, resetLabel){
 $("copyBtn").textContent = "Copiar resumen del día";
 $("copyBtn").onclick = () => {
   const ds = daySales(); const d = new Date(viewDay+"T12:00:00");
-  const lines = ds.map((s,i)=>`${i+1}. ${s.cat} · ${label(s)}${s.ref?" (ref "+s.ref+")":""} · ${eur(s.price)}${s.dto?` (−${s.dto} %)`:""}${(!s.ref&&!s.manual)?" · SIN CONCRETAR":""}`);
+  const lines = ds.map((s,i)=>`${i+1}. ${s.cat} · ${label(s)}${s.ref?" (ref "+s.ref+")":""} · ${eur(s.price)}${s.dto?` (−${s.dto} %)`:""}${s.pay?" · "+s.pay:""}${(!s.ref&&!s.manual)?" · SIN CONCRETAR":""}`);
   const tot = ds.reduce((a,s)=>a+s.price,0);
   const txt = `Ventas PB x Pauvé · ${d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})}\n`+(lines.join("\n")||"Sin ventas")+`\nTotal: ${ds.length} ${ds.length===1?"pieza":"piezas"} · ${eur(round2(tot))}`;
   copyText(txt, $("copyBtn"), "Copiado", "Copiar resumen del día");
@@ -540,6 +604,9 @@ $("accessBtn").onclick = async () => {
   let info; try{ info = await api("owners"); }catch(e){ body.innerHTML = `<p class="note">No se ha podido cargar.</p>`; return; }
   body.innerHTML = `
     <p class="note">Dueñas con acceso completo: <b>${info.owners.map(o=>esc(o.name)).join(", ")}</b></p>
+    <div class="field"><span class="lbl">Reparto del beneficio (%)</span>
+      ${info.owners.map(o=>`<label class="kv" style="align-items:center"><span>${esc(o.name)}</span><input data-share="${o.id}" type="number" inputmode="decimal" min="0" max="100" step="1" value="${o.share ?? Math.round(1000/info.owners.length)/10}" style="width:6em;padding:8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface)"></label>`).join("")}
+      <button class="ghost" id="sSave">Guardar reparto</button></div>
     <div class="field"><span class="lbl">Dar acceso de dueña</span>
       <input id="oNm" placeholder="Nombre (ej. Patricia)" autocomplete="off">
       <input id="oPw" type="text" placeholder="Su contraseña (mín. 8)" autocomplete="off">
@@ -553,6 +620,7 @@ $("accessBtn").onclick = async () => {
     <p class="note" id="aMsg" hidden></p>`;
   const msg = (t) => { $("aMsg").hidden=false; $("aMsg").textContent=t; };
   const run = async (fn, okText) => { try{ await fn(); msg(okText); }catch(e){ msg($("storeWarn").textContent || "No se ha podido guardar."); warn(""); } };
+  $("sSave").onclick = () => { const shares = {}; document.querySelectorAll("[data-share]").forEach(i=>shares[i.dataset.share]=Number(String(i.value).replace(",","."))); run(async()=>{ await api("share",{shares}); await load(); }, "Reparto guardado."); };
   $("oAdd").onclick = () => run(()=>api("addowner",{name:$("oNm").value, password:$("oPw").value}), "Hecho. Pásale su contraseña en persona o por WhatsApp; luego puede cambiarla ella aquí.");
   $("mSave").onclick = () => run(()=>api("mypassword",{password:$("mPw").value}), "Tu contraseña está cambiada.");
   $("tSave").onclick = () => run(()=>api("teampassword",{password:$("tPw").value}), "Contraseña del equipo cambiada. Tendrán que volver a entrar con la nueva.");
@@ -636,22 +704,94 @@ function renderToday(){
   $("todayCount").textContent = ts.length+" "+(ts.length===1?"pieza":"piezas")+" hoy";
 }
 function setTab(t){
-  for(const [tab,view,name] of [["tabSell","sellView","sell"],["tabDay","dayView","day"],["tabProd","prodView","prod"]]){
+  for(const [tab,view,name] of [["tabSell","sellView","sell"],["tabDay","dayView","day"],["tabProd","prodView","prod"],["tabRes","resView","res"]]){
     $(tab).setAttribute("aria-selected", t===name); $(view).hidden = t!==name;
   }
   if(t==="day"){ viewDay = dayKey(new Date()); $("cpText").hidden = true; renderDay(); }
   if(t==="prod") renderProducts();
+  if(t==="res"){ viewMonth = dayKey(new Date()).slice(0,7); renderMonth(); }
   window.scrollTo(0,0);
 }
 $("tabSell").onclick = ()=>setTab("sell");
 $("tabDay").onclick = ()=>setTab("day");
 $("tabProd").onclick = ()=>setTab("prod");
+$("tabRes").onclick = ()=>setTab("res");
 $("todayBox").onclick = ()=>setTab("day");
 
 function renderProfile(){
   $("profileTxt").innerHTML = role ? `${esc(myName)} · <b>${isAdmin()? "dueña" : "equipo"}</b>` : "sin entrar";
 }
-function refresh(){ renderProfile(); buildGroups(); renderDto(); renderCats(); renderToday(); if(!$("dayView").hidden) renderDay(); if(!$("prodView").hidden) renderProducts(); }
+function renderBadges(){
+  const n = lowList().length;
+  $("lowBadge").hidden = !n; $("lowBadge").textContent = n;
+  $("tabRes").hidden = !isAdmin();
+  if(!isAdmin() && !$("resView").hidden) setTab("sell");
+}
+function refresh(){ renderProfile(); renderBadges(); buildGroups(); renderDto(); renderCats(); renderToday(); if(!$("dayView").hidden) renderDay(); if(!$("prodView").hidden) renderProducts(); if(!$("resView").hidden) renderMonth(); }
+
+/* ---------- monthly summary (owners only) ---------- */
+let viewMonth = dayKey(new Date()).slice(0,7);
+function shiftMonth(n){ const [y,m] = viewMonth.split("-").map(Number); const d = new Date(y, m-1+n, 1); viewMonth = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); renderMonth(); }
+$("prevMonth").onclick = ()=>shiftMonth(-1);
+$("nextMonth").onclick = ()=>shiftMonth(1);
+const kv = (k,v) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`;
+function renderMonth(){
+  const [y,m] = viewMonth.split("-").map(Number);
+  $("monthLabel").textContent = new Date(y, m-1, 15).toLocaleDateString("es-ES",{month:"long",year:"numeric"});
+  const ms = sales.filter(s=>dayKey(s.t).slice(0,7)===viewMonth);
+  const tot = round2(ms.reduce((a,s)=>a+s.price,0));
+  const prof = round2(ms.reduce((a,s)=>a+(s.cost!=null? s.price-s.cost : 0),0));
+  const noCost = ms.filter(s=>s.cost==null).length;
+  $("mPieces").textContent = ms.length; $("mTotal").textContent = eurShort(tot); $("mProfit").textContent = eurShort(prof);
+  const byPay = k => round2(ms.filter(s=>(s.pay||null)===k).reduce((a,s)=>a+s.price,0));
+  $("mPay").innerHTML = kv("Efectivo", eur(byPay("efectivo"))) + kv("Tarjeta", eur(byPay("tarjeta"))) + (byPay(null)? kv("Sin indicar", eur(byPay(null))) : "");
+  const n = owners.length || 1;
+  const shares = owners.map(o=>({name:o.name, pct: o.share!=null ? o.share : 100/n}));
+  $("mShare").innerHTML = shares.map(o=>kv(`${esc(o.name)} · ${Math.round(o.pct*10)/10} %`, eur(round2(prof*o.pct/100)))).join("") +
+    `<p class="note">Beneficio = lo cobrado menos el coste de cada pieza.${noCost? ` ${noCost} ${noCost===1?"venta no tiene":"ventas no tienen"} coste (precio a mano) y cuentan como beneficio 0.`:""} Los porcentajes se cambian en Productos › Accesos y contraseñas.</p>`;
+  const cats = CAT_ORDER.map(c=>{ const cs = ms.filter(s=>s.cat===c); return [c, cs.length, round2(cs.reduce((a,s)=>a+s.price,0))]; }).filter(x=>x[1]);
+  $("mCats").innerHTML = cats.length ? cats.map(([c,k,t])=>kv(`${c} · ${k} ${k===1?"pieza":"piezas"}`, eur(t))).join("") : `<p class="note">Sin ventas este mes.</p>`;
+  const count = {}; ms.filter(s=>s.ref!=null).forEach(s=>count[s.ref]=(count[s.ref]||0)+1);
+  const top = Object.entries(count).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  $("mTop").innerHTML = top.length ? top.map(([ref,k])=>{ const p = PRODUCTS.find(x=>x.ref===Number(ref)); return kv(esc(p? p.name : "ref "+ref)+(p? ` <small class="note">${p.cat} · ${eurShort(p.price??0)}</small>`:""), k+" "+(k===1?"vendida":"vendidas")); }).join("") : `<p class="note">Aún no hay piezas concretas vendidas este mes.</p>`;
+  const cutoff = Date.now() - 60*86400000;
+  const lastSale = {}; sales.forEach(s=>{ if(s.ref!=null) lastSale[s.ref] = Math.max(lastSale[s.ref]||0, new Date(s.t).getTime()); });
+  const still = PRODUCTS.filter(p=>!p.hidden && p.price!=null && left(p)>0 && new Date(p.added||0).getTime() < cutoff && (lastSale[p.ref]||0) < cutoff)
+    .sort((a,b)=>(lastSale[a.ref]||0)-(lastSale[b.ref]||0));
+  $("mStill").innerHTML = still.length ? still.slice(0,30).map(p=>kv(`${esc(p.name)} <small class="note">${p.cat} · ${eurShort(p.price)}</small>`, `quedan ${left(p)}`)).join("") + (still.length>30? `<p class="note">y ${still.length-30} más.</p>`:"")
+    : `<p class="note">Ninguna. Esta lista empieza a llenarse cuando la caja lleva 60 días en uso.</p>`;
+}
+
+/* ---------- photos in a row ---------- */
+let shootList = [], shootI = 0;
+$("shootBtn").onclick = () => {
+  shootList = PRODUCTS.filter(p=>!p.hidden && !p.photo).sort((a,b)=> CAT_ORDER.indexOf(a.cat)-CAT_ORDER.indexOf(b.cat) || (a.price??0)-(b.price??0) || a.name.localeCompare(b.name,"es"));
+  shootI = 0; showShoot();
+};
+function showShoot(){
+  if(shootI >= shootList.length){ closeSheet(); showToast(shootList.length? "Fotos terminadas. ¡Gracias!" : "Todas las piezas tienen foto."); load().catch(()=>{}); return; }
+  const p = shootList[shootI];
+  openSheet(`Foto ${shootI+1} de ${shootList.length}`);
+  $("sheetBody").innerHTML = `<div class="shoot">
+      <span id="shootPrev" class="thumb">sin foto</span>
+      <div><b style="font-size:1.15rem">${esc(p.name)}</b><br><span class="note">${p.cat} · ${p.price!=null? eurShort(p.price) : "sin precio"} · ref ${p.ref}</span></div>
+      <label class="primary" for="shootIn" style="width:100%;text-align:center">Hacer foto</label>
+      <input id="shootIn" type="file" accept="image/*" capture="environment" hidden>
+      <button class="ghost" id="shootSkip" style="width:100%">Saltar esta pieza</button>
+      <p class="note" id="shootMsg"></p></div>`;
+  $("shootSkip").onclick = () => { shootI++; showShoot(); };
+  $("shootIn").onchange = async e => {
+    const f = e.target.files[0]; if(!f) return;
+    $("shootMsg").textContent = "Subiendo…";
+    try{
+      const blob = await shrink(f);
+      $("shootPrev").outerHTML = `<img class="thumb" src="${URL.createObjectURL(blob)}" alt="">`;
+      const fd = new FormData(); fd.append("f", blob, "foto.jpg"); fd.append("ref", p.ref);
+      const r = await api("photo", fd); p.photo = r.photo;
+      shootI++; setTimeout(showShoot, 400);
+    }catch(x){ $("shootMsg").textContent = $("storeWarn").textContent || "No se ha podido subir. Prueba otra vez."; warn(""); }
+  };
+}
 refresh();
 load().catch(()=>{});
 </script>

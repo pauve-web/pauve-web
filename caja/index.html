@@ -604,6 +604,9 @@ $("accessBtn").onclick = async () => {
   let info; try{ info = await api("owners"); }catch(e){ body.innerHTML = `<p class="note">No se ha podido cargar.</p>`; return; }
   body.innerHTML = `
     <p class="note">Dueñas con acceso completo: <b>${info.owners.map(o=>esc(o.name)).join(", ")}</b></p>
+    ${info.owners.filter(o=>!Number(o.canlogin)).map(o=>`<div class="field"><span class="lbl">${esc(o.name)} aún no tiene contraseña</span>
+      <input data-opw="${o.id}" type="text" placeholder="Su contraseña (mín. 8)" autocomplete="off">
+      <button class="ghost" data-opwbtn="${o.id}">Dar contraseña a ${esc(o.name)}</button></div>`).join("")}
     <div class="field"><span class="lbl">Reparto del beneficio (%)</span>
       ${info.owners.map(o=>`<label class="kv" style="align-items:center"><span>${esc(o.name)}</span><input data-share="${o.id}" type="number" inputmode="decimal" min="0" max="100" step="1" value="${o.share ?? Math.round(1000/info.owners.length)/10}" style="width:6em;padding:8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface)"></label>`).join("")}
       <button class="ghost" id="sSave">Guardar reparto</button></div>
@@ -620,6 +623,7 @@ $("accessBtn").onclick = async () => {
     <p class="note" id="aMsg" hidden></p>`;
   const msg = (t) => { $("aMsg").hidden=false; $("aMsg").textContent=t; };
   const run = async (fn, okText) => { try{ await fn(); msg(okText); }catch(e){ msg($("storeWarn").textContent || "No se ha podido guardar."); warn(""); } };
+  document.querySelectorAll("[data-opwbtn]").forEach(b=>b.onclick=()=>run(()=>api("ownerpassword",{id:Number(b.dataset.opwbtn), password:document.querySelector(`[data-opw="${b.dataset.opwbtn}"]`).value}), "Hecho. Pásale la contraseña; podrá cambiarla ella al entrar."));
   $("sSave").onclick = () => { const shares = {}; document.querySelectorAll("[data-share]").forEach(i=>shares[i.dataset.share]=Number(String(i.value).replace(",","."))); run(async()=>{ await api("share",{shares}); await load(); }, "Reparto guardado."); };
   $("oAdd").onclick = () => run(()=>api("addowner",{name:$("oNm").value, password:$("oPw").value}), "Hecho. Pásale su contraseña en persona o por WhatsApp; luego puede cambiarla ella aquí.");
   $("mSave").onclick = () => run(()=>api("mypassword",{password:$("mPw").value}), "Tu contraseña está cambiada.");

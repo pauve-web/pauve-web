@@ -240,6 +240,18 @@ switch ($a) {
     $pdo->exec("DELETE FROM tokens WHERE role='team'");
     out(['ok' => true]);
 
+  case 'import':
+    /* load the starting product list later, from the app; products that already exist are kept as they are */
+    needAdmin();
+    $rows = body()['products'] ?? null;
+    if (!is_array($rows) || !$rows) fail('El archivo está vacío o no es la lista de productos.');
+    foreach ($rows as $r) if (!is_array($r) || count($r) !== 6 || !in_array($r[2], CATS, true)) fail('El archivo de productos no tiene el formato esperado.');
+    $ins = $pdo->prepare('INSERT OR IGNORE INTO products(ref,name,cat,cost,price,stock,photo,hidden,added) VALUES(?,?,?,?,?,?,NULL,0,?)');
+    $pdo->beginTransaction(); $n = 0;
+    foreach ($rows as [$ref, $name, $cat, $cost, $price, $stock]) { $ins->execute([(int)$ref, txtcut((string)$name, 0, 80), $cat, num($cost), num($price), max(0, (int)$stock), gmdate('c')]); $n += $ins->rowCount(); }
+    $pdo->commit();
+    out(['ok' => true, 'added' => $n]);
+
   case 'csv':
     needAdmin();
     header('Content-Type: text/csv; charset=utf-8');

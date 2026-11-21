@@ -174,6 +174,8 @@ body.is-admin .team-only{display:none}
     <div id="prodList" class="list"></div>
     <button class="ghost" id="copyLow">Copiar lista para reponer</button>
     <div id="adminTools" hidden style="display:flex;flex-direction:column;gap:8px">
+      <label class="ghost" for="impFile" style="text-align:center">Cargar lista de productos (archivo .json)</label>
+      <input id="impFile" type="file" accept=".json,application/json" hidden>
       <button class="ghost" id="accessBtn">Accesos y contraseñas</button>
       <a class="ghost" href="api.php?a=csv" style="text-align:center;text-decoration:none;color:inherit">Descargar todas las ventas (Excel)</a>
     </div>
@@ -337,7 +339,7 @@ function renderCats(){
     }
     box.appendChild(sec);
   }
-  if(!PRODUCTS.length) return;
+  if(!PRODUCTS.length){ box.innerHTML = `<p class="banner">Todavía no hay productos. ${isAdmin()? "Ve a Productos y pulsa «Cargar lista de productos»." : "Avisa a una dueña para que los cargue."}</p>`; return; }
   const sec = document.createElement("section");
   sec.innerHTML = `<h2>Otra cosa</h2><div class="prices"><button class="pbtn other" id="otherBtn"><span class="pr">+ Precio a mano</span><span class="n">pieza que no está en la lista</span></button></div>`;
   box.appendChild(sec);
@@ -523,6 +525,13 @@ $("newProd").onclick = () => openEditor(null);
 $("copyLow").onclick = () => {
   const txt = "Para reponer PB x Pauvé:\n"+lowList().map(p=>`· ${p.cat} · ${p.name} (ref ${p.ref}) · quedan ${Math.max(0,left(p))}`).join("\n");
   copyText(txt, $("copyLow"), "Copiado", "Copiar lista para reponer");
+};
+$("impFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if(!f) return;
+  let products;
+  try{ products = JSON.parse(await f.text()); }catch(x){ showToast("Ese archivo no es la lista de productos. Elige productos-iniciales.json."); return; }
+  try{ const r = await api("import",{products}); showToast(r.added? `Cargados ${r.added} productos.` : "Esos productos ya estaban cargados."); load().catch(()=>{}); }
+  catch(x){ showToast($("storeWarn").textContent || "No se ha podido cargar."); }
 };
 $("accessBtn").onclick = async () => {
   openSheet("Accesos y contraseñas");

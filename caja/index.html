@@ -116,6 +116,14 @@ section h2 small{font-family:var(--body);font-size:.8rem;color:var(--muted);font
 .sum div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
 .sum b{display:block;font-family:var(--display);font-size:1.3rem;font-variant-numeric:tabular-nums}
 .sum span{font-size:.75rem;color:var(--muted)}
+.split{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.split h3{margin:0;font-family:var(--display);font-weight:500;font-size:1rem;display:flex;justify-content:space-between;gap:8px}
+.split h3 b{font-variant-numeric:tabular-nums}
+.bar{display:flex;height:34px;border-radius:10px;overflow:hidden;background:var(--bg);gap:2px}
+.bar span{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#fff;min-width:0;white-space:nowrap;overflow:hidden}
+.who{display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:center;font-variant-numeric:tabular-nums}
+.who i{width:12px;height:12px;border-radius:4px;display:inline-block}
+.who b{font-family:var(--display);font-size:1.15rem;text-align:right}
 .sale{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .sale .t{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .sale .w{min-width:0}
@@ -179,6 +187,7 @@ body.is-admin .team-only{display:none}
       <div><b id="dProfit">0 €</b><span>beneficio aprox.</span></div>
     </div>
     <p class="note" id="dPay"></p>
+    <div class="split" id="dSplit" hidden></div>
     <div id="pendBanner" class="banner warn" hidden></div>
     <div id="sales" class="list"></div>
     <button class="primary copy" id="copyBtn">Copiar resumen para enviar a Paula</button>
@@ -515,6 +524,7 @@ function renderDay(){
   $("dPieces").textContent = ds.length; $("dTotal").textContent = eurShort(round2(tot)); $("dProfit").textContent = eurShort(round2(prof));
   const byPay = k => round2(ds.filter(s=>(s.pay||null)===k).reduce((a,s)=>a+s.price,0));
   $("dPay").textContent = ds.length ? `Efectivo ${eur(byPay("efectivo"))} · Tarjeta ${eur(byPay("tarjeta"))}${byPay(null)? ` · Sin indicar ${eur(byPay(null))}`:""}` : "";
+  renderDaySplit(ds, prof);
   const pend = ds.filter(s=>!s.ref && !s.manual).length;
   $("pendBanner").hidden = !pend;
   $("pendBanner").textContent = `${pend} ${pend===1?"venta":"ventas"} sin concretar la pieza. Toca «¿Cuál fue?» cuando tengas un momento, para que el stock cuadre.`;
@@ -543,6 +553,26 @@ function renderDay(){
     if(!b.classList.contains("armed")){ b.classList.add("armed"); b.textContent="Borrar"; setTimeout(()=>{b.classList.remove("armed"); b.textContent="×";},3000); return; }
     delSale(b.dataset.del);
   });
+}
+/* chart of the day's real profit split between the owners (owners only) */
+const SPLIT_COLORS = ["#7b2d55", "#b07a12", "#2f6f8f", "#5b7a2e"];
+function renderDaySplit(ds, prof){
+  const box = $("dSplit");
+  if(!isAdmin() || !owners.length){ box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  const n = owners.length;
+  const sh = owners.map((o,i)=>({name:o.name, pct: o.share!=null ? o.share : 100/n, color: SPLIT_COLORS[i % SPLIT_COLORS.length]})).filter(o=>o.pct>0).sort((a,b)=>b.pct-a.pct);
+  const cost = round2(ds.reduce((a,s)=>a+(s.cost!=null? s.cost : 0),0));
+  const p = round2(prof);
+  const bar = p > 0
+    ? sh.map(o=>`<span style="width:${o.pct}%;background:${o.color}">${Math.round(o.pct)} %</span>`).join("")
+    : `<span style="width:100%;color:var(--muted);font-weight:500">${ds.length? "Sin beneficio este día" : "Aún no hay ventas"}</span>`;
+  const who = sh.map(o=>`<i style="background:${o.color}"></i><span>${esc(o.name)} · ${Math.round(o.pct*10)/10} %</span><b>${eur(round2(p*o.pct/100))}</b>`).join("");
+  const noCost = ds.filter(s=>s.cost==null).length;
+  box.innerHTML = `<h3><span>Beneficio real del día</span><b>${eur(p)}</b></h3>
+    <div class="bar" role="img" aria-label="Reparto del beneficio">${bar}</div>
+    <div class="who">${who}</div>
+    <p class="note" style="margin:0">Beneficio = cobrado (${eur(round2(ds.reduce((a,s)=>a+s.price,0)))}) menos lo que costaron las piezas (${eur(cost)}). Ese coste vuelve a partes iguales${n? `: ${eur(round2(cost/n))} cada una` : ""}.${noCost? ` ${noCost} ${noCost===1?"venta no tiene":"ventas no tienen"} coste y cuenta${noCost===1?"":"n"} como beneficio 0.` : ""}</p>`;
 }
 function copyText(txt, btn, okLabel, resetLabel){
   const ta = $("cpText"); ta.value = txt;

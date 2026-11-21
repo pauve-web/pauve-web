@@ -15,10 +15,27 @@ www.pauvestudio.com {
 }
 
 pauvestudio.com {
-	root * /var/www/pauve-web/public
 	encode zstd gzip
-	# Que el navegador compruebe siempre si hay una versión nueva de las páginas
-	@paginas path / *.html */
-	header @paginas Cache-Control "no-cache"
-	file_server
+
+	# Caja de PB x Pauvé: app interna (PHP) para apuntar ventas de bisutería.
+	# El código está en caja/; los datos (ventas, fotos, contraseñas) viven fuera
+	# del repositorio, en /var/lib/caja-pbp. Instalación: caja/instalar-servidor.sh
+	redir /caja /caja/
+	handle_path /caja/* {
+		root * /var/www/pauve-web/caja
+		header Cache-Control "no-cache"
+		header X-Robots-Tag "noindex, nofollow"
+		php_fastcgi unix//run/php/php-fpm.sock {
+			env CAJA_DATA /var/lib/caja-pbp
+		}
+		file_server
+	}
+
+	handle {
+		root * /var/www/pauve-web/public
+		# Que el navegador compruebe siempre si hay una versión nueva de las páginas
+		@paginas path / *.html */
+		header @paginas Cache-Control "no-cache"
+		file_server
+	}
 }

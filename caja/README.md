@@ -21,7 +21,7 @@ Ventas, productos, fotos y contraseñas se guardan en `/var/lib/caja-pbp` en el 
 ## Permisos
 
 - **Equipo**: apuntar ventas, concretar «No sé cuál», poner fotos, sumar unidades y borrar ventas de las últimas 24 h.
-- **Paula**: además, crear y retirar productos, cambiar nombres, precios y descuentos, borrar cualquier venta y descargar todas las ventas en Excel (CSV).
+- **Dueñas**: además, quedarse una pieza a precio de coste (sin beneficio), crear y retirar productos, cambiar nombres, precios y descuentos, borrar cualquier venta y descargar todas las ventas en Excel (CSV).
 
 ## Copia de seguridad
 

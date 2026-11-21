@@ -38,6 +38,9 @@ header .wrap{padding-block:10px;display:flex;flex-direction:column;gap:10px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 h1{font-family:var(--display);font-weight:700;font-size:1.25rem;margin:0;letter-spacing:-.01em}
 h1 small{font-family:var(--body);font-weight:500;color:var(--muted);font-size:.8rem;margin-left:6px}
+.who{display:flex;flex-direction:column;gap:4px;min-width:0}
+.profile{border:0;background:var(--accent-soft);color:var(--fg);border-radius:999px;padding:4px 10px;font-size:.8rem;font-weight:600;text-align:left;width:fit-content}
+.profile b{color:var(--accent)}
 .today{font-variant-numeric:tabular-nums;text-align:right;font-size:.85rem;color:var(--muted)}
 .today b{display:block;color:var(--fg);font-size:1.1rem}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -119,7 +122,8 @@ body.is-admin .team-only{display:none}
 <header>
   <div class="wrap">
     <div class="top">
-      <h1>PB x Pauvé<small>caja de joyitas</small></h1>
+      <div class="who"><h1>PB x Pauvé<small>caja de joyitas</small></h1>
+        <button class="profile" id="logout" title="Cambiar de perfil"><span id="profileTxt">…</span> · <u>cambiar</u></button></div>
       <div class="today" id="todayBox"><b id="todayTotal">0,00 €</b><span id="todayCount">0 piezas hoy</span></div>
     </div>
     <div class="row" role="group" aria-label="Descuento">
@@ -163,6 +167,12 @@ body.is-admin .team-only{display:none}
   </div>
   <div class="wrap" id="prodView" hidden>
     <button class="primary" id="newProd">+ Nuevo producto</button>
+    <div id="adminTools" hidden style="display:flex;flex-direction:column;gap:8px">
+      <label class="ghost" for="impFile" style="text-align:center">Cargar lista de productos (archivo .json)</label>
+      <input id="impFile" type="file" accept=".json,application/json" hidden>
+      <button class="ghost" id="accessBtn">Accesos y contraseñas</button>
+      <a class="ghost" href="api.php?a=csv" style="text-align:center;text-decoration:none;color:inherit">Descargar todas las ventas (Excel)</a>
+    </div>
     <input class="search" id="pq" type="search" placeholder="Buscar producto" autocomplete="off">
     <div class="row" role="group" aria-label="Filtro">
       <button class="pill" id="fAll" aria-pressed="true">Todos</button>
@@ -173,14 +183,6 @@ body.is-admin .team-only{display:none}
     <p class="note" id="prodCount"></p>
     <div id="prodList" class="list"></div>
     <button class="ghost" id="copyLow">Copiar lista para reponer</button>
-    <div id="adminTools" hidden style="display:flex;flex-direction:column;gap:8px">
-      <label class="ghost" for="impFile" style="text-align:center">Cargar lista de productos (archivo .json)</label>
-      <input id="impFile" type="file" accept=".json,application/json" hidden>
-      <button class="ghost" id="accessBtn">Accesos y contraseñas</button>
-      <a class="ghost" href="api.php?a=csv" style="text-align:center;text-decoration:none;color:inherit">Descargar todas las ventas (Excel)</a>
-    </div>
-    <p class="note" id="whoami"></p>
-    <button class="ghost" id="logout">Salir en este móvil</button>
   </div>
 </main>
 
@@ -257,9 +259,9 @@ function gate(title, text, fields, btn, onSubmit){
 }
 function showLogin(){
   role = null;
-  gate("PB x Pauvé · caja", "Entra una vez en este móvil y se quedará recordado. El equipo usa la contraseña del equipo; cada dueña, la suya.",
+  gate("¿Quién eres?", "Con la contraseña del equipo entras como equipo. Con tu contraseña de dueña entras como dueña y puedes cambiarlo todo. Se queda recordado en este móvil.",
     `<div class="field"><label class="lbl" for="gName">Tu nombre</label><input id="gName" autocomplete="nickname" required value="${esc(localStorageGet("caja.name"))}"></div>
-     <div class="field"><label class="lbl" for="gPw">Contraseña</label><input id="gPw" type="password" autocomplete="current-password" required></div>`,
+     <div class="field"><label class="lbl" for="gPw">Contraseña (la del equipo o la tuya de dueña)</label><input id="gPw" type="password" autocomplete="current-password" required></div>`,
     "Entrar", async ()=>{ localStorageSet("caja.name",$("gName").value.trim()); await api("login",{name:$("gName").value,password:$("gPw").value}); await load(); });
 }
 function showSetup(){
@@ -509,7 +511,6 @@ function renderProducts(){
   $("copyLow").hidden = pFilter!=="low";
   $("newProd").hidden = !isAdmin();
   $("adminTools").hidden = !isAdmin();
-  $("whoami").textContent = `Has entrado como ${myName}${isAdmin()? " (dueña, puedes cambiarlo todo)" : " (equipo)"}.`;
   const box = $("prodList"); box.innerHTML="";
   for(const p of list){
     const b = document.createElement("button"); const l = left(p);
@@ -556,7 +557,7 @@ $("accessBtn").onclick = async () => {
   $("mSave").onclick = () => run(()=>api("mypassword",{password:$("mPw").value}), "Tu contraseña está cambiada.");
   $("tSave").onclick = () => run(()=>api("teampassword",{password:$("tPw").value}), "Contraseña del equipo cambiada. Tendrán que volver a entrar con la nueva.");
 };
-$("logout").onclick = async () => { try{ await api("logout",{}); }catch(e){} showLogin(); };
+$("logout").onclick = async () => { try{ await api("logout",{}); }catch(e){} closeSheet(); showLogin(); };
 
 function shrink(file){
   return new Promise((res,rej)=>{
@@ -647,7 +648,10 @@ $("tabDay").onclick = ()=>setTab("day");
 $("tabProd").onclick = ()=>setTab("prod");
 $("todayBox").onclick = ()=>setTab("day");
 
-function refresh(){ buildGroups(); renderDto(); renderCats(); renderToday(); if(!$("dayView").hidden) renderDay(); if(!$("prodView").hidden) renderProducts(); }
+function renderProfile(){
+  $("profileTxt").innerHTML = role ? `${esc(myName)} · <b>${isAdmin()? "dueña" : "equipo"}</b>` : "sin entrar";
+}
+function refresh(){ renderProfile(); buildGroups(); renderDto(); renderCats(); renderToday(); if(!$("dayView").hidden) renderDay(); if(!$("prodView").hidden) renderProducts(); }
 refresh();
 load().catch(()=>{});
 </script>

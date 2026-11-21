@@ -26,3 +26,9 @@ Ventas, productos, fotos y contraseñas se guardan en `/var/lib/caja-pbp` en el 
 ## Copia de seguridad
 
 Basta con copiar la carpeta `/var/lib/caja-pbp`.
+
+## Más funciones (nov 2026)
+
+- **Clientas** (todas): apartados (resta la pieza del stock disponible hasta que se la lleva), encargos y vales regalo con código. Un vale se cobra al venderlo, pero cuenta como venta cuando se gasta.
+- **Cuentas** (dueñas): cifras globales, «Repartir beneficio» (lo que toca a cada una desde el último reparto, incluido el ajuste de quién pagó la mercancía), compras de mercancía con foto o PDF de la factura (suman piezas al stock) y descargas en Excel.
+- **Copias**: cada semana se guarda sola una copia de la base en `/var/lib/caja-pbp/copias` (las 8 últimas).

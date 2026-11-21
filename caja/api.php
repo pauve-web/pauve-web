@@ -46,16 +46,89 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS config (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, role TEXT, name TEXT, created TEXT, owner_id INTEGER);
 CREATE TABLE IF NOT EXISTS owners (id INTEGER PRIMARY KEY, name TEXT, hash TEXT);
 CREATE TABLE IF NOT EXISTS products (ref INTEGER PRIMARY KEY, name TEXT, cat TEXT, cost REAL, price REAL, stock INTEGER, photo TEXT, hidden INTEGER DEFAULT 0, added TEXT);
-CREATE TABLE IF NOT EXISTS sales (id TEXT PRIMARY KEY, t TEXT, ref INTEGER, name TEXT, cat TEXT, list REAL, dto REAL, price REAL, cost REAL, manual INTEGER, seller TEXT);");
+CREATE TABLE IF NOT EXISTS sales (id TEXT PRIMARY KEY, t TEXT, ref INTEGER, name TEXT, cat TEXT, list REAL, dto REAL, price REAL, cost REAL, manual INTEGER, seller TEXT);
+CREATE TABLE IF NOT EXISTS entries (id TEXT PRIMARY KEY, t TEXT, day TEXT, supplier TEXT, total REAL, paid_by INTEGER, note TEXT, doc TEXT, lines TEXT, author TEXT);
+CREATE TABLE IF NOT EXISTS holds (id TEXT PRIMARY KEY, t TEXT, kind TEXT, ref INTEGER, what TEXT, client TEXT, phone TEXT, deposit REAL, note TEXT, status TEXT, author TEXT, closed TEXT);
+CREATE TABLE IF NOT EXISTS vouchers (code TEXT PRIMARY KEY, t TEXT, amount REAL, balance REAL, holder TEXT, pay TEXT, seller TEXT, note TEXT);
+CREATE TABLE IF NOT EXISTS settlements (id INTEGER PRIMARY KEY, t TEXT, data TEXT, author TEXT);");
 
 /* columns added after the first version: add them if the database is older */
-foreach (['ALTER TABLE tokens ADD COLUMN owner_id INTEGER', 'ALTER TABLE sales ADD COLUMN pay TEXT', 'ALTER TABLE owners ADD COLUMN share REAL', 'ALTER TABLE sales ADD COLUMN own INTEGER DEFAULT 0'] as $sql) {
+foreach (['ALTER TABLE tokens ADD COLUMN owner_id INTEGER', 'ALTER TABLE sales ADD COLUMN pay TEXT', 'ALTER TABLE owners ADD COLUMN share REAL', 'ALTER TABLE sales ADD COLUMN own INTEGER DEFAULT 0', 'ALTER TABLE sales ADD COLUMN voucher TEXT', 'ALTER TABLE sales ADD COLUMN vamt REAL'] as $sql) {
   try { $pdo->exec($sql); } catch (Throwable $e) { /* already there */ }
 }
 function cfg(string $k, $def = null) { global $pdo; $s = $pdo->prepare('SELECT v FROM config WHERE k=?'); $s->execute([$k]); $v = $s->fetchColumn(); return $v === false ? $def : $v; }
 function setCfg(string $k, string $v): void { global $pdo; $pdo->prepare('INSERT INTO config(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v')->execute([$k, $v]); }
 function body(): array { $j = json_decode(file_get_contents('php://input') ?: '[]', true); return is_array($j) ? $j : []; }
 function num($v): ?float { if ($v === null || $v === '') return null; return is_numeric($v) ? round((float)$v, 2) : null; }
+/* give back to a gift card what a sale had taken from it */
+function unVoucher(string $saleId): void {
+  global $pdo;
+  $s = $pdo->prepare('SELECT voucher,vamt FROM sales WHERE id=?'); $s->execute([$saleId]); $x = $s->fetch();
+  if ($x && $x['voucher']) {
+    $pdo->prepare('UPDATE vouchers SET balance=balance+? WHERE code=?')->execute([(float)$x['vamt'], $x['voucher']]);
+    $pdo->prepare('UPDATE sales SET voucher=NULL, vamt=NULL WHERE id=?')->execute([$saleId]);
+  }
+}
+function newId(): string { return bin2hex(random_bytes(8)); }
+function okId($v): string { return preg_match('/^[a-z0-9]{8,32}$/', (string)$v) ? (string)$v : newId(); }
+function short($v, int $n = 80): string { return trim(txtcut((string)($v ?? ''), 0, $n)); }
+const DOC_RE = '/^[a-f0-9]{20}\.(jpg|png|webp|pdf)$/';
+
+/* weekly copy of the whole database, kept next to it (the last 8 weeks) */
+function maybeBackup(): void {
+  global $pdo, $cfg;
+  $last = (int)cfg('backup_t', '0');
+  if (time() - $last < 7 * 86400) return;
+  $dir = DATA_DIR . '/copias';
+  if (!is_dir($dir) && !@mkdir($dir, 0750, true)) return;
+  $file = $dir . '/caja-' . date('Y-m-d') . '.sqlite';
+  try {
+    if (is_file($file)) @unlink($file);
+    $pdo->exec('VACUUM INTO ' . $pdo->quote($file));
+  } catch (Throwable $e) {
+    try { $pdo->exec('PRAGMA wal_checkpoint(TRUNCATE)'); @copy(DATA_DIR . '/' . $cfg['db'], $file); } catch (Throwable $e2) { return; }
+  }
+  if (!is_file($file)) return;
+  setCfg('backup_t', (string)time());
+  $all = glob($dir . '/caja-*.sqlite') ?: []; sort($all);
+  foreach (array_slice($all, 0, max(0, count($all) - 8)) as $old) @unlink($old);
+}
+function backups(): array {
+  $all = glob(DATA_DIR . '/copias/caja-*.sqlite') ?: []; rsort($all);
+  return array_map(fn($f) => ['day' => substr(basename($f), 5, 10), 'kb' => (int)round(filesize($f) / 1024)], $all);
+}
+/* money of the sales since the last split, and what each owner should get */
+function pending(): array {
+  global $pdo;
+  $since = (string)($pdo->query('SELECT t FROM settlements ORDER BY id DESC LIMIT 1')->fetchColumn() ?: '');
+  $owners = $pdo->query('SELECT id,name,share FROM owners ORDER BY id')->fetchAll();
+  $n = max(1, count($owners));
+  $s = $pdo->prepare('SELECT * FROM sales WHERE t > ?'); $s->execute([$since]);
+  $count = 0; $revenue = 0.0; $cost = 0.0; $profit = 0.0; $ownCount = 0; $ownPaid = []; 
+  foreach ($s as $x) {
+    $c = $x['cost'] === null ? 0.0 : (float)$x['cost'];
+    $cost += $c;
+    if (!empty($x['own'])) { $ownCount++; $ownPaid[$x['seller']] = ($ownPaid[$x['seller']] ?? 0) + (float)$x['price']; continue; }
+    $count++; $revenue += (float)$x['price'];
+    if ($x['cost'] !== null) $profit += (float)$x['price'] - $c;
+  }
+  $e = $pdo->prepare('SELECT total,paid_by FROM entries WHERE t > ?'); $e->execute([$since]);
+  $bought = 0.0; $paid = [];
+  foreach ($e as $x) {
+    $bought += (float)$x['total'];
+    if ((int)$x['paid_by'] === 0) foreach ($owners as $o) $paid[$o['id']] = ($paid[$o['id']] ?? 0) + (float)$x['total'] / $n;
+    else $paid[(int)$x['paid_by']] = ($paid[(int)$x['paid_by']] ?? 0) + (float)$x['total'];
+  }
+  $rows = [];
+  foreach ($owners as $o) {
+    $pct = $o['share'] === null ? 100 / $n : (float)$o['share'];
+    $back = round($cost / $n, 2); $prof = round($profit * $pct / 100, 2);
+    $adj = round(($paid[$o['id']] ?? 0) - $bought / $n, 2);
+    $rows[] = ['id' => (int)$o['id'], 'name' => $o['name'], 'pct' => $pct, 'cost' => $back, 'profit' => $prof, 'adjust' => $adj, 'total' => round($back + $prof + $adj, 2)];
+  }
+  return ['since' => $since, 'count' => $count, 'revenue' => round($revenue, 2), 'cost' => round($cost, 2), 'profit' => round($profit, 2),
+    'own' => $ownCount, 'ownPaid' => $ownPaid, 'bought' => round($bought, 2), 'owners' => $rows];
+}
 
 $a = $_GET['a'] ?? '';
 $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
@@ -147,7 +220,15 @@ switch ($a) {
     /* a discount with an end date switches itself off once that day is over */
     $until = (string)cfg('dto_until', '');
     if ($until !== '' && date('Y-m-d') > $until) { setCfg('dto', '0'); setCfg('dto_until', ''); $until = ''; }
-    $res = ['role' => $me['role'], 'name' => $me['name'], 'dto' => (float)cfg('dto', '0'), 'dtoUntil' => $until, 'products' => $products, 'sales' => $sales];
+    maybeBackup();
+    foreach ($sales as &$x) { $x['vamt'] = $x['vamt'] === null ? null : (float)$x['vamt']; }
+    $holds = $pdo->query("SELECT * FROM holds WHERE status='abierto' OR closed >= '" . gmdate('c', time() - 30 * 86400) . "' ORDER BY t")->fetchAll();
+    foreach ($holds as &$h) { $h['ref'] = $h['ref'] === null ? null : (int)$h['ref']; $h['deposit'] = $h['deposit'] === null ? null : (float)$h['deposit']; }
+    $vouchers = $pdo->query('SELECT * FROM vouchers ORDER BY t')->fetchAll();
+    foreach ($vouchers as &$v) { $v['amount'] = (float)$v['amount']; $v['balance'] = (float)$v['balance']; }
+    unset($x, $h, $v);
+    $res = ['role' => $me['role'], 'name' => $me['name'], 'dto' => (float)cfg('dto', '0'), 'dtoUntil' => $until, 'products' => $products, 'sales' => $sales,
+      'holds' => $holds, 'vouchers' => $vouchers];
     if ($admin) {
       $res['owners'] = $pdo->query('SELECT id,name,share,(hash IS NOT NULL) AS canlogin FROM owners ORDER BY id')->fetchAll();
       foreach ($res['owners'] as &$o) { $o['id'] = (int)$o['id']; $o['share'] = $o['share'] === null ? null : (float)$o['share']; $o['canlogin'] = (bool)$o['canlogin']; }
@@ -184,7 +265,10 @@ switch ($a) {
     if ($t === false) out(['ok' => true]);
     /* the team may only remove sales from the last 24 hours; older ones only Paula */
     if (!$admin && strtotime($t) < time() - 86400) fail('Las ventas de días anteriores solo las pueden borrar las dueñas.', 403);
+    $pdo->beginTransaction();
+    unVoucher($id);
     $pdo->prepare('DELETE FROM sales WHERE id=?')->execute([$id]);
+    $pdo->commit();
     out(['ok' => true]);
 
   case 'assign':
@@ -195,8 +279,161 @@ switch ($a) {
     out(['ok' => true]);
 
   case 'pay':
-    $b = body(); $pay = in_array($b['pay'] ?? null, ['efectivo', 'tarjeta'], true) ? $b['pay'] : null;
-    $pdo->prepare('UPDATE sales SET pay=? WHERE id=?')->execute([$pay, (string)($b['id'] ?? '')]);
+    $b = body(); $id = (string)($b['id'] ?? '');
+    $pay = in_array($b['pay'] ?? null, ['efectivo', 'tarjeta', 'vale'], true) ? $b['pay'] : null;
+    $pdo->beginTransaction();
+    unVoucher($id);
+    $used = null;
+    if ($pay === 'vale') {
+      $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)($b['code'] ?? '')));
+      $v = $pdo->prepare('SELECT balance FROM vouchers WHERE code=?'); $v->execute([$code]); $bal = $v->fetchColumn();
+      if ($bal === false) { $pdo->rollBack(); fail('No existe ningún vale con ese código.'); }
+      if ((float)$bal <= 0) { $pdo->rollBack(); fail('Ese vale ya está gastado.'); }
+      $s = $pdo->prepare('SELECT price FROM sales WHERE id=?'); $s->execute([$id]); $price = $s->fetchColumn();
+      if ($price === false) { $pdo->rollBack(); fail('No encuentro esa venta.'); }
+      $used = round(min((float)$bal, (float)$price), 2);
+      $pdo->prepare('UPDATE vouchers SET balance=balance-? WHERE code=?')->execute([$used, $code]);
+      $pdo->prepare('UPDATE sales SET pay=?, voucher=?, vamt=? WHERE id=?')->execute(['vale', $code, $used, $id]);
+    } else {
+      $pdo->prepare('UPDATE sales SET pay=? WHERE id=?')->execute([$pay, $id]);
+    }
+    $pdo->commit();
+    out(['ok' => true, 'used' => $used]);
+
+  case 'vsell':
+    /* sell a gift card: the money comes in now, the sale is counted when it is spent */
+    $b = body();
+    $amount = num($b['amount'] ?? null); if ($amount === null || $amount <= 0 || $amount > 1000) fail('Importe no válido');
+    $abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    do { $code = ''; for ($i = 0; $i < 6; $i++) $code .= $abc[random_int(0, strlen($abc) - 1)];
+      $c = $pdo->prepare('SELECT 1 FROM vouchers WHERE code=?'); $c->execute([$code]); } while ($c->fetchColumn());
+    $pay = in_array($b['pay'] ?? null, ['efectivo', 'tarjeta'], true) ? $b['pay'] : null;
+    $pdo->prepare('INSERT INTO vouchers(code,t,amount,balance,holder,pay,seller,note) VALUES(?,?,?,?,?,?,?,?)')->execute([
+      $code, gmdate('c'), $amount, $amount, short($b['holder'] ?? '', 60), $pay, $me['name'], short($b['note'] ?? '', 200)]);
+    out(['ok' => true, 'code' => $code]);
+
+  case 'vdel':
+    needAdmin();
+    $code = (string)(body()['code'] ?? '');
+    $c = $pdo->prepare('SELECT COUNT(*) FROM sales WHERE voucher=?'); $c->execute([$code]);
+    if ((int)$c->fetchColumn() > 0) fail('Ese vale ya se ha usado en alguna venta; no se puede borrar.');
+    $pdo->prepare('DELETE FROM vouchers WHERE code=?')->execute([$code]);
+    out(['ok' => true]);
+
+  case 'hold':
+    /* put a piece aside for a client (apartado) or note something a client asked for (encargo) */
+    $b = body();
+    $kind = in_array($b['kind'] ?? '', ['apartado', 'encargo'], true) ? $b['kind'] : fail('Tipo no válido');
+    $client = short($b['client'] ?? '', 60); if ($client === '') fail('Escribe el nombre de la clienta.');
+    $ref = isset($b['ref']) && $b['ref'] !== null ? (int)$b['ref'] : null;
+    $what = short($b['what'] ?? '', 120);
+    if ($kind === 'apartado') {
+      $s = $pdo->prepare('SELECT name FROM products WHERE ref=?'); $s->execute([(int)$ref]); $pn = $s->fetchColumn();
+      if ($pn === false) fail('Elige la pieza que se aparta.');
+      $what = $pn;
+    } elseif ($what === '') fail('Escribe qué ha pedido.');
+    $id = okId($b['id'] ?? '');
+    $pdo->prepare('INSERT OR IGNORE INTO holds(id,t,kind,ref,what,client,phone,deposit,note,status,author,closed) VALUES(?,?,?,?,?,?,?,?,?,?,?,NULL)')->execute([
+      $id, gmdate('c'), $kind, $kind === 'apartado' ? $ref : null, $what, $client, short($b['phone'] ?? '', 30), num($b['deposit'] ?? null), short($b['note'] ?? '', 200), 'abierto', $me['name']]);
+    out(['ok' => true, 'id' => $id]);
+
+  case 'holdstatus':
+    $b = body();
+    $st = in_array($b['status'] ?? '', ['abierto', 'hecho', 'anulado'], true) ? $b['status'] : fail('Estado no válido');
+    $pdo->prepare('UPDATE holds SET status=?, closed=? WHERE id=?')->execute([$st, $st === 'abierto' ? null : gmdate('c'), (string)($b['id'] ?? '')]);
+    out(['ok' => true]);
+
+  case 'entries':
+    needAdmin();
+    $rows = $pdo->query('SELECT * FROM entries ORDER BY day DESC, t DESC')->fetchAll();
+    foreach ($rows as &$r) { $r['total'] = (float)$r['total']; $r['paid_by'] = (int)$r['paid_by']; $r['lines'] = json_decode((string)$r['lines'], true) ?: []; }
+    out(['entries' => $rows]);
+
+  case 'entry':
+    /* goods bought: what it cost, who paid, the invoice, and the units that go into stock */
+    needAdmin();
+    $b = body();
+    $total = num($b['total'] ?? null); if ($total === null || $total < 0) fail('Escribe el importe de la factura.');
+    $day = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($b['day'] ?? '')) ? $b['day'] : date('Y-m-d');
+    $paidBy = (int)($b['paid_by'] ?? 0);
+    if ($paidBy) { $c = $pdo->prepare('SELECT 1 FROM owners WHERE id=?'); $c->execute([$paidBy]); if (!$c->fetchColumn()) fail('No encuentro a esa dueña.'); }
+    $doc = isset($b['doc']) && preg_match(DOC_RE, (string)$b['doc']) ? $b['doc'] : null;
+    $lines = [];
+    foreach ((array)($b['lines'] ?? []) as $l) {
+      $ref = (int)($l['ref'] ?? 0); $q = (int)($l['qty'] ?? 0);
+      if ($ref && $q > 0 && $q <= 1000) $lines[] = ['ref' => $ref, 'qty' => $q];
+    }
+    $pdo->beginTransaction();
+    $up = $pdo->prepare('UPDATE products SET stock=stock+?, hidden=0 WHERE ref=?');
+    foreach ($lines as $l) $up->execute([$l['qty'], $l['ref']]);
+    $id = okId($b['id'] ?? '');
+    $pdo->prepare('INSERT INTO entries(id,t,day,supplier,total,paid_by,note,doc,lines,author) VALUES(?,?,?,?,?,?,?,?,?,?)')->execute([
+      $id, gmdate('c'), $day, short($b['supplier'] ?? '', 80), $total, $paidBy, short($b['note'] ?? '', 300), $doc, json_encode($lines), $me['name']]);
+    $pdo->commit();
+    out(['ok' => true, 'id' => $id]);
+
+  case 'delentry':
+    /* undo an entry: its units leave the stock again */
+    needAdmin();
+    $id = (string)(body()['id'] ?? '');
+    $s = $pdo->prepare('SELECT lines FROM entries WHERE id=?'); $s->execute([$id]); $l = $s->fetchColumn();
+    if ($l === false) out(['ok' => true]);
+    $pdo->beginTransaction();
+    $up = $pdo->prepare('UPDATE products SET stock=MAX(0,stock-?) WHERE ref=?');
+    foreach (json_decode((string)$l, true) ?: [] as $x) $up->execute([(int)$x['qty'], (int)$x['ref']]);
+    $pdo->prepare('DELETE FROM entries WHERE id=?')->execute([$id]);
+    $pdo->commit();
+    out(['ok' => true]);
+
+  case 'globals':
+    /* all-time figures for the owners */
+    needAdmin();
+    $g = $pdo->query("SELECT COUNT(*) n, COALESCE(SUM(price),0) rev, COALESCE(SUM(CASE WHEN cost IS NOT NULL THEN price-cost ELSE 0 END),0) prof,
+      COALESCE(SUM(COALESCE(cost,0)),0) cost, MIN(t) first FROM sales WHERE COALESCE(own,0)=0")->fetch();
+    $own = $pdo->query("SELECT COUNT(*) n, COALESCE(SUM(price),0) paid FROM sales WHERE own=1")->fetch();
+    $sold = []; foreach ($pdo->query('SELECT ref, COUNT(*) n FROM sales WHERE ref IS NOT NULL GROUP BY ref') as $r) $sold[(int)$r['ref']] = (int)$r['n'];
+    $held = []; foreach ($pdo->query("SELECT ref, COUNT(*) n FROM holds WHERE kind='apartado' AND status='abierto' GROUP BY ref") as $r) $held[(int)$r['ref']] = (int)$r['n'];
+    $units = 0; $atCost = 0.0; $atPrice = 0.0; $noCost = 0;
+    foreach ($pdo->query('SELECT ref,cost,price,stock,hidden FROM products') as $p) {
+      $left = (int)$p['stock'] - ($sold[(int)$p['ref']] ?? 0); if ($left <= 0) continue;
+      $units += $left;
+      if ($p['cost'] === null) $noCost += $left; else $atCost += $left * (float)$p['cost'];
+      if ($p['price'] !== null) $atPrice += $left * (float)$p['price'];
+    }
+    $inv = $pdo->query('SELECT COALESCE(SUM(total),0) total, COUNT(*) n FROM entries')->fetch();
+    $owners = $pdo->query('SELECT id,name FROM owners ORDER BY id')->fetchAll(); $n = max(1, count($owners));
+    $byOwner = []; foreach ($owners as $o) $byOwner[$o['name']] = 0.0;
+    $names = array_column($owners, 'name', 'id');
+    foreach ($pdo->query('SELECT total,paid_by FROM entries') as $e) {
+      if ((int)$e['paid_by'] === 0) foreach ($byOwner as $k => $_) $byOwner[$k] += (float)$e['total'] / $n;
+      elseif (isset($names[(int)$e['paid_by']])) $byOwner[$names[(int)$e['paid_by']]] += (float)$e['total'];
+    }
+    $vou = $pdo->query('SELECT COUNT(*) n, COALESCE(SUM(amount),0) sold, COALESCE(SUM(balance),0) bal FROM vouchers')->fetch();
+    $hold = $pdo->query("SELECT kind, COUNT(*) n FROM holds WHERE status='abierto' GROUP BY kind")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $hist = $pdo->query('SELECT id,t,data,author FROM settlements ORDER BY id DESC LIMIT 24')->fetchAll();
+    foreach ($hist as &$h) { $h['data'] = json_decode((string)$h['data'], true); } unset($h);
+    out(['sales' => ['n' => (int)$g['n'], 'revenue' => round((float)$g['rev'], 2), 'profit' => round((float)$g['prof'], 2), 'cost' => round((float)$g['cost'], 2), 'first' => $g['first']],
+      'own' => ['n' => (int)$own['n'], 'paid' => round((float)$own['paid'], 2)],
+      'stock' => ['units' => $units, 'atCost' => round($atCost, 2), 'atPrice' => round($atPrice, 2), 'noCost' => $noCost],
+      'invested' => ['total' => round((float)$inv['total'], 2), 'n' => (int)$inv['n'], 'byOwner' => array_map(fn($v) => round($v, 2), $byOwner)],
+      'vouchers' => ['n' => (int)$vou['n'], 'sold' => round((float)$vou['sold'], 2), 'left' => round((float)$vou['bal'], 2)],
+      'holds' => ['apartado' => (int)($hold['apartado'] ?? 0), 'encargo' => (int)($hold['encargo'] ?? 0)],
+      'pending' => pending(), 'settlements' => $hist,
+      'backups' => backups(), 'lastDownload' => cfg('download_t')]);
+
+  case 'settle':
+    /* the owners have shared out the money up to now: remember what each one got */
+    needAdmin();
+    $p = pending();
+    if ($p['count'] === 0 && $p['own'] === 0 && $p['bought'] == 0) fail('No hay nada nuevo que repartir desde el último reparto.');
+    $p['note'] = short(body()['note'] ?? '', 200);
+    $pdo->prepare('INSERT INTO settlements(t,data,author) VALUES(?,?,?)')->execute([gmdate('c'), json_encode($p, JSON_UNESCAPED_UNICODE), $me['name']]);
+    out(['ok' => true]);
+
+  case 'unsettle':
+    /* undo the last split if it was marked by mistake */
+    needAdmin();
+    $pdo->exec('DELETE FROM settlements WHERE id=(SELECT MAX(id) FROM settlements)');
     out(['ok' => true]);
 
   case 'dto':
@@ -222,10 +459,11 @@ switch ($a) {
   case 'photo':
     /* team and Paula can both add photos */
     if (empty($_FILES['f']) || $_FILES['f']['error'] !== UPLOAD_ERR_OK) fail('No ha llegado la foto. Prueba otra vez.');
-    if ($_FILES['f']['size'] > 5 * 1024 * 1024) fail('La foto es demasiado grande.');
+    if ($_FILES['f']['size'] > 8 * 1024 * 1024) fail('El archivo es demasiado grande (máximo 8 MB).');
     $info = @getimagesize($_FILES['f']['tmp_name']);
-    if (!$info || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true)) fail('Ese archivo no es una foto válida.');
-    $ext = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'][$info[2]];
+    $isPdf = !$info && $admin && !empty($_POST['doc']) && file_get_contents($_FILES['f']['tmp_name'], false, null, 0, 5) === '%PDF-';
+    if (!$isPdf && (!$info || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true))) fail('Ese archivo no es una foto válida.');
+    $ext = $isPdf ? 'pdf' : [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'][$info[2]];
     $pid = bin2hex(random_bytes(10)) . '.' . $ext;
     if (!move_uploaded_file($_FILES['f']['tmp_name'], PHOTO_DIR . '/' . $pid)) fail('No he podido guardar la foto en el servidor.', 500);
     $ref = (int)($_POST['ref'] ?? 0);
@@ -234,8 +472,8 @@ switch ($a) {
 
   case 'foto':
     $pid = (string)($_GET['id'] ?? '');
-    if (!preg_match('/^[a-f0-9]{20}\.(jpg|png|webp)$/', $pid) || !is_file(PHOTO_DIR . '/' . $pid)) { http_response_code(404); exit; }
-    header('Content-Type: ' . ['jpg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'][pathinfo($pid, PATHINFO_EXTENSION)]);
+    if (!preg_match(DOC_RE, $pid) || !is_file(PHOTO_DIR . '/' . $pid)) { http_response_code(404); exit; }
+    header('Content-Type: ' . ['jpg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'pdf' => 'application/pdf'][pathinfo($pid, PATHINFO_EXTENSION)]);
     header('Cache-Control: private, max-age=31536000, immutable');
     readfile(PHOTO_DIR . '/' . $pid); exit;
 
@@ -320,17 +558,46 @@ switch ($a) {
     $pdo->commit();
     out(['ok' => true, 'added' => $n]);
 
+  case 'stockcsv':
+    needAdmin();
+    setCfg('download_t', (string)time());
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="stock-pb-pauve-' . date('Y-m-d') . '.csv"');
+    $sold = []; foreach ($pdo->query('SELECT ref, COUNT(*) n FROM sales WHERE ref IS NOT NULL GROUP BY ref') as $r) $sold[(int)$r['ref']] = (int)$r['n'];
+    $f = fopen('php://output', 'w'); fwrite($f, "\xEF\xBB\xBF");
+    $nf = fn($v) => $v === null ? '' : str_replace('.', ',', (string)$v);
+    fputcsv($f, ['Referencia', 'Producto', 'Tipo', 'Coste', 'Precio', 'Unidades compradas', 'Vendidas', 'Quedan', 'Valor a coste', 'Retirado'], ';');
+    foreach ($pdo->query('SELECT * FROM products ORDER BY cat, ref') as $p) {
+      $v = $sold[(int)$p['ref']] ?? 0; $l = (int)$p['stock'] - $v;
+      fputcsv($f, [$p['ref'], $p['name'], $p['cat'], $nf($p['cost']), $nf($p['price']), $p['stock'], $v, $l, $p['cost'] === null ? '' : $nf(round(max(0, $l) * (float)$p['cost'], 2)), $p['hidden'] ? 'Sí' : ''], ';');
+    }
+    exit;
+
+  case 'entriescsv':
+    needAdmin();
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="compras-pb-pauve-' . date('Y-m-d') . '.csv"');
+    $names = array_column($pdo->query('SELECT id,name FROM owners')->fetchAll(), 'name', 'id');
+    $f = fopen('php://output', 'w'); fwrite($f, "\xEF\xBB\xBF");
+    fputcsv($f, ['Fecha', 'Proveedor', 'Importe', 'Pagado por', 'Piezas añadidas', 'Nota', 'Factura'], ';');
+    foreach ($pdo->query('SELECT * FROM entries ORDER BY day') as $e) {
+      $u = array_sum(array_column(json_decode((string)$e['lines'], true) ?: [], 'qty'));
+      fputcsv($f, [date('d/m/Y', strtotime($e['day'])), $e['supplier'], str_replace('.', ',', (string)$e['total']), (int)$e['paid_by'] ? ($names[(int)$e['paid_by']] ?? '?') : 'A medias', $u, $e['note'], $e['doc'] ? 'Sí' : 'No'], ';');
+    }
+    exit;
+
   case 'csv':
     needAdmin();
+    setCfg('download_t', (string)time());
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="ventas-pb-pauve-' . date('Y-m-d') . '.csv"');
     $f = fopen('php://output', 'w');
     fwrite($f, "\xEF\xBB\xBF");
-    fputcsv($f, ['Fecha', 'Hora', 'Tipo', 'Producto', 'Referencia', 'Precio etiqueta', 'Descuento %', 'Cobrado', 'Coste', 'Vendido por', 'Pago', 'Para una dueña'], ';');
+    fputcsv($f, ['Fecha', 'Hora', 'Tipo', 'Producto', 'Referencia', 'Precio etiqueta', 'Descuento %', 'Cobrado', 'Coste', 'Vendido por', 'Pago', 'Para una dueña', 'Vale'], ';');
     foreach ($pdo->query('SELECT * FROM sales ORDER BY t') as $x) {
       $ts = strtotime($x['t']);
       $nf = fn($v) => $v === null ? '' : str_replace('.', ',', (string)$v);
-      fputcsv($f, [date('d/m/Y', $ts), date('H:i', $ts), $x['cat'], $x['name'] ?? 'SIN CONCRETAR', $x['ref'] ?? '', $nf($x['list']), $nf($x['dto']), $nf($x['price']), $nf($x['cost']), $x['seller'], $x['pay'] ?? '', !empty($x['own']) ? 'Sí, a precio de coste' : ''], ';');
+      fputcsv($f, [date('d/m/Y', $ts), date('H:i', $ts), $x['cat'], $x['name'] ?? 'SIN CONCRETAR', $x['ref'] ?? '', $nf($x['list']), $nf($x['dto']), $nf($x['price']), $nf($x['cost']), $x['seller'], $x['pay'] ?? '', !empty($x['own']) ? 'Sí, a precio de coste' : '', $x['voucher'] ? $x['voucher'] . ' (' . str_replace('.', ',', (string)$x['vamt']) . ')' : ''], ';');
     }
     exit;
 }

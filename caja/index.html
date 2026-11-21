@@ -57,8 +57,8 @@ h1 small{font-family:var(--body);font-weight:500;color:var(--muted);font-size:.8
 .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
 .pill{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-weight:600;font-size:.9rem}
 .pill[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-.tabs{display:flex;gap:4px;background:var(--bg);border-radius:12px;padding:4px}
-.tabs button{flex:1;border:0;background:transparent;padding:8px;border-radius:9px;font-weight:700;color:var(--muted)}
+.tabs{display:flex;gap:2px;background:var(--bg);border-radius:12px;padding:4px;overflow-x:auto;scrollbar-width:none}
+.tabs button{flex:1 0 auto;border:0;background:transparent;padding:8px 5px;border-radius:9px;font-weight:700;color:var(--muted);font-size:.84rem;white-space:nowrap}
 .tabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgb(0 0 0 / .12)}
 main .wrap{padding-block:16px 120px;display:flex;flex-direction:column;gap:22px}
 .search{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface)}
@@ -107,6 +107,19 @@ section h2{font-family:var(--display);font-weight:500;font-size:1.05rem;margin:0
 .paybtns[hidden]{display:none}
 .toast .paybtns button{flex:1}
 .toast .paybtns button[aria-pressed="true"]{background:var(--bg);color:var(--fg)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.card .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card .top b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.card small{color:var(--muted);font-size:.82rem}
+.card .acts{display:flex;gap:6px;flex-wrap:wrap}
+.card .acts button,.card .acts a{border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:7px 12px;font-weight:600;font-size:.85rem;color:inherit;text-decoration:none}
+.card .acts .go{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.code{font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:.12em}
+.bigcode{font-size:2.2rem;text-align:center;padding:14px;border:2px dashed var(--accent);border-radius:14px;background:var(--surface)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.field textarea{padding:12px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);font:inherit;min-height:70px}
+section h2 small{font-family:var(--body);font-size:.78rem;color:var(--muted);font-weight:500;margin-left:6px}
+.sec{display:flex;flex-direction:column;gap:8px}
 .badge{display:inline-block;min-width:1.4em;padding:0 5px;margin-left:4px;border-radius:999px;background:var(--warn);color:#fff;font-size:.72rem;line-height:1.4em}
 .paychip{border:1px solid var(--line);background:var(--bg);border-radius:999px;font-size:.72rem;padding:1px 8px;margin-top:3px;color:var(--muted)}
 .paychip.set{color:var(--fg);border-color:var(--accent)}
@@ -180,7 +193,8 @@ body.is-admin .team-only{display:none}
       <button role="tab" id="tabSell" aria-selected="true">Vender</button>
       <button role="tab" id="tabDay" aria-selected="false">Ventas</button>
       <button role="tab" id="tabProd" aria-selected="false">Productos<span class="badge" id="lowBadge" hidden></span></button>
-      <button role="tab" id="tabRes" aria-selected="false" hidden>Resumen</button>
+      <button role="tab" id="tabCli" aria-selected="false">Clientas<span class="badge" id="cliBadge" hidden></span></button>
+      <button role="tab" id="tabRes" aria-selected="false" hidden>Cuentas</button>
     </div>
   </div>
 </header>
@@ -212,6 +226,7 @@ body.is-admin .team-only{display:none}
       <div><b id="dProfit">0 €</b><span>beneficio aprox.</span></div>
     </div>
     <p class="note" id="dPay"></p>
+    <p class="note" id="dVouch" hidden></p>
     <div class="split" id="dSplit" hidden></div>
     <div id="pendBanner" class="banner warn" hidden></div>
     <div id="sales" class="list"></div>
@@ -239,7 +254,16 @@ body.is-admin .team-only{display:none}
     <div id="prodList" class="list"></div>
     <button class="ghost" id="copyLow">Copiar lista para reponer</button>
   </div>
+  <div class="wrap" id="cliView" hidden>
+    <section class="sec"><h2>Apartados <small>piezas guardadas para una clienta</small></h2><div class="list" id="holdList"></div><button class="ghost" id="newHold">+ Apartar una pieza</button></section>
+    <section class="sec"><h2>Encargos <small>lo que piden y no tenemos</small></h2><div class="list" id="orderList"></div><button class="ghost" id="newOrder">+ Apuntar un encargo</button></section>
+    <section class="sec"><h2>Vales regalo</h2><div class="list" id="vList"></div><button class="ghost" id="newVoucher">+ Vender un vale regalo</button>
+      <p class="note">Para cobrar con un vale: apunta la venta como siempre y, abajo, pulsa «Vale».</p></section>
+  </div>
   <div class="wrap" id="resView" hidden>
+    <section class="sec"><h2>Cifras globales <small>desde el principio</small></h2><div class="rows" id="gBox"><p class="note">Cargando…</p></div></section>
+    <section class="sec"><h2>Repartir beneficio</h2><div class="rows" id="rBox"></div></section>
+    <h2 style="font-family:var(--display);font-weight:500;font-size:1.05rem;margin:0 0 -12px">Resumen del mes</h2>
     <div class="dayhead">
       <button class="x" id="prevMonth" aria-label="Mes anterior">‹</button>
       <strong id="monthLabel"></strong>
@@ -255,6 +279,11 @@ body.is-admin .team-only{display:none}
     <section><h2>Por tipo</h2><div class="rows" id="mCats"></div></section>
     <section><h2>Más vendidas <small>este mes</small></h2><div class="rows" id="mTop"></div></section>
     <section><h2>Piezas paradas <small>con stock y sin ventas en 60 días</small></h2><div class="rows" id="mStill"></div></section>
+    <section class="sec"><h2>Compras de mercancía</h2><button class="primary" id="newEntry">+ Apuntar una compra</button><div class="list" id="eList"></div></section>
+    <section class="sec"><h2>Copias de seguridad y Excel</h2><div class="rows" id="bBox"></div>
+      <a class="ghost" href="api.php?a=csv" style="text-align:center;text-decoration:none;color:inherit">Descargar ventas (Excel)</a>
+      <a class="ghost" href="api.php?a=stockcsv" style="text-align:center;text-decoration:none;color:inherit">Descargar stock (Excel)</a>
+      <a class="ghost" href="api.php?a=entriescsv" style="text-align:center;text-decoration:none;color:inherit">Descargar compras (Excel)</a></section>
   </div>
 </main>
 
@@ -266,7 +295,7 @@ body.is-admin .team-only{display:none}
 </div>
 
 <div class="toast" id="toast" hidden role="status"><span id="toastMsg"></span><button id="undoBtn">Deshacer</button>
-  <div class="paybtns" id="payBtns" hidden><button data-pay="efectivo" aria-pressed="false">Efectivo</button><button data-pay="tarjeta" aria-pressed="false">Tarjeta</button></div></div>
+  <div class="paybtns" id="payBtns" hidden><button data-pay="efectivo" aria-pressed="false">Efectivo</button><button data-pay="tarjeta" aria-pressed="false">Tarjeta</button><button data-pay="vale" aria-pressed="false">Vale</button></div></div>
 
 <div class="scrim" id="gate" hidden style="align-items:center">
   <form class="sheet" id="gateForm" style="border-radius:20px;max-width:420px;margin:16px" autocomplete="on">
@@ -290,6 +319,7 @@ const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""
 const newId = () => (Date.now().toString(36)+Math.random().toString(36).slice(2,10)).slice(0,20);
 
 /* ---------- server ---------- */
+let holds = [], vouchers = [];
 let PRODUCTS = [], sales = [], dto = 0, dtoUntil = "", owners = [], role = null, myName = "";
 const isAdmin = () => role === "admin";
 function warn(msg){ $("storeWarn").textContent = msg; $("storeWarn").hidden = !msg; }
@@ -309,7 +339,7 @@ async function api(a, data){
 }
 async function load(){
   const j = await api("state");
-  role = j.role; myName = j.name; dto = j.dto; dtoUntil = j.dtoUntil || ""; owners = j.owners || []; PRODUCTS = j.products; sales = j.sales;
+  role = j.role; myName = j.name; dto = j.dto; dtoUntil = j.dtoUntil || ""; owners = j.owners || []; PRODUCTS = j.products; sales = j.sales; holds = j.holds || []; vouchers = j.vouchers || [];
   $("loadNote").hidden = true;
   $("gate").hidden = true;
   document.body.classList.toggle("is-admin", isAdmin());
@@ -358,7 +388,8 @@ function localStorageSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const withDto = p => round2(p*(1-dto/100));
 const isOwn = s => !!s.own;
 const soldCount = ref => sales.filter(s=>s.ref===ref).length;
-const left = p => (p.stock||0) - soldCount(p.ref);
+const heldCount = ref => holds.filter(h=>h.kind==="apartado" && h.status==="abierto" && h.ref===ref).length;
+const left = p => (p.stock||0) - soldCount(p.ref) - heldCount(p.ref);
 const photoURL = p => p && p.photo ? "api.php?a=foto&id="+encodeURIComponent(p.photo) : null;
 const thumbHTML = p => photoURL(p) ? `<img class="thumb" src="${photoURL(p)}" alt="" loading="lazy">` : `<span class="thumb">sin foto</span>`;
 let groups = {};
@@ -518,13 +549,35 @@ function showToast(msg, undo, pay){
   document.querySelectorAll("#payBtns button").forEach(b=>b.setAttribute("aria-pressed","false"));
   clearTimeout(toastT); toastT = setTimeout(()=>{$("toast").hidden=true;}, pay? 9000 : 6000);
 }
-async function setPay(id, pay){
+async function setPay(id, pay, code){
   const s = sales.find(x=>x.id===id); if(!s) return;
-  const old = s.pay; s.pay = pay; refresh();
-  try{ await pendingSell.catch(()=>{}); await api("pay",{id, pay}); }catch(e){ s.pay = old; refresh(); }
+  const old = [s.pay, s.voucher]; s.pay = pay; s.voucher = pay==="vale"? code : null; refresh();
+  try{
+    await pendingSell.catch(()=>{});
+    const r = await api("pay",{id, pay, code});
+    if(pay==="vale"){
+      s.vamt = r.used;
+      showToast(r.used < s.price ? `El vale ${code} cubre ${eur(r.used)}. Cobra ${eur(round2(s.price-r.used))} aparte.` : `Pagado con el vale ${code}.`);
+    }
+    if(pay==="vale" || old[1]) load().catch(()=>{});
+  }catch(e){ [s.pay, s.voucher] = old; refresh(); if(pay==="vale") showToast($("storeWarn").textContent || "No se ha podido usar el vale."); warn(""); }
+}
+function askVoucher(saleId){
+  const s = sales.find(x=>x.id===saleId); if(!s) return;
+  openSheet("Pagar con vale regalo");
+  const act = vouchers.filter(v=>v.balance>0);
+  $("sheetBody").innerHTML = `<p class="note">Venta de ${eur(s.price)}. Escribe el código del vale o elígelo de la lista.</p>
+    <div class="field"><label class="lbl" for="vCode">Código del vale</label><input id="vCode" autocomplete="off" autocapitalize="characters" class="code" placeholder="ej. K7P2QX"></div>
+    <button class="primary" id="vUse">Usar este vale</button>
+    <div class="list">${act.map(v=>`<button class="item" data-code="${esc(v.code)}"><span class="nm"><span class="code">${esc(v.code)}</span>${v.holder? " · "+esc(v.holder):""}</span><span class="meta">quedan ${eur(v.balance)}</span></button>`).join("") || `<p class="note">No hay vales con saldo.</p>`}</div>`;
+  const use = code => { code = String(code).toUpperCase().replace(/[^A-Z0-9]/g,""); if(!code) return; closeSheet(); setPay(saleId, "vale", code); };
+  $("vUse").onclick = () => use($("vCode").value);
+  $("sheetBody").querySelectorAll("[data-code]").forEach(b=>b.onclick=()=>use(b.dataset.code));
+  setTimeout(()=>$("vCode").focus(),50);
 }
 document.querySelectorAll("#payBtns button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#payBtns button").forEach(x=>x.setAttribute("aria-pressed", x===b));
+  if(b.dataset.pay==="vale"){ $("toast").hidden = true; if(lastId) askVoucher(lastId); return; }
   if(lastId) setPay(lastId, b.dataset.pay);
   clearTimeout(toastT); toastT = setTimeout(()=>{$("toast").hidden=true;}, 1500);
 });
@@ -570,8 +623,12 @@ function renderDay(){
   const tot = ds.reduce((a,s)=>a+s.price,0);
   const prof = ds.reduce((a,s)=>a+(s.cost!=null? s.price-s.cost : 0),0);
   $("dPieces").textContent = ds.length; $("dTotal").textContent = eurShort(round2(tot)); $("dProfit").textContent = eurShort(round2(prof));
-  const byPay = k => round2(ds.filter(s=>(s.pay||null)===k).reduce((a,s)=>a+s.price,0));
-  $("dPay").textContent = ds.length ? `Efectivo ${eur(byPay("efectivo"))} · Tarjeta ${eur(byPay("tarjeta"))}${byPay(null)? ` · Sin indicar ${eur(byPay(null))}`:""}` : "";
+  const byPay = k => round2(ds.filter(s=>(s.pay||null)===k).reduce((a,s)=>a+(k==="vale" && s.vamt!=null ? s.vamt : s.price),0));
+  const valeRest = round2(ds.filter(s=>s.pay==="vale" && s.vamt!=null).reduce((a,s)=>a+s.price-s.vamt,0));
+  $("dPay").textContent = ds.length ? `Efectivo ${eur(byPay("efectivo"))} · Tarjeta ${eur(byPay("tarjeta"))}${byPay("vale")? ` · Vale ${eur(byPay("vale"))}`:""}${valeRest? ` · Resto de ventas con vale ${eur(valeRest)}`:""}${byPay(null)? ` · Sin indicar ${eur(byPay(null))}`:""}` : "";
+  const vs = vouchers.filter(v=>dayKey(v.t)===viewDay);
+  $("dVouch").hidden = !vs.length;
+  $("dVouch").textContent = `Vales regalo vendidos este día: ${vs.length} · ${eur(round2(vs.reduce((a,v)=>a+v.amount,0)))} (${vs.map(v=>v.pay||"pago sin indicar").join(", ")}). No cuentan como venta hasta que se gastan.`;
   renderDaySplit(ds, prof, mine);
   const pend = ds.filter(s=>!s.ref && !s.manual).length;
   $("pendBanner").hidden = !pend;
@@ -584,14 +641,15 @@ function renderDay(){
     const time = new Date(s.t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
     const canDel = isAdmin() || recent(s.t);
     row.innerHTML = `<span class="t">${time}</span>
-      <span class="w">${esc(label(s))}<small>${esc(s.cat)}${s.ref? " · ref "+s.ref:""}${s.seller? " · "+esc(s.seller):""}</small>${isOwn(s)? `<span class="owntag">Se la queda ${esc(s.seller||"una dueña")} · a coste</span>` : `<button class="paychip${s.pay?" set":""}" data-pay="${s.id}">${s.pay==="tarjeta"?"Tarjeta":s.pay==="efectivo"?"Efectivo":"¿Efectivo o tarjeta?"}</button>`}${(!s.ref&&!s.manual)?`<button class="tag" data-assign="${s.id}">¿Cuál fue?</button>`:""}</span>
+      <span class="w">${esc(label(s))}<small>${esc(s.cat)}${s.ref? " · ref "+s.ref:""}${s.seller? " · "+esc(s.seller):""}</small>${isOwn(s)? `<span class="owntag">Se la queda ${esc(s.seller||"una dueña")} · a coste</span>` : `<button class="paychip${s.pay?" set":""}" data-pay="${s.id}">${s.pay==="tarjeta"?"Tarjeta":s.pay==="efectivo"?"Efectivo":s.pay==="vale"?"Vale "+esc(s.voucher||"")+(s.vamt!=null&&s.vamt<s.price?` (${eur(s.vamt)})`:""):"¿Efectivo, tarjeta o vale?"}</button>`}${(!s.ref&&!s.manual)?`<button class="tag" data-assign="${s.id}">¿Cuál fue?</button>`:""}</span>
       <span class="p">${eur(s.price)}${s.dto?`<small>−${s.dto} % de ${eurShort(s.list)}</small>`:""}</span>
       ${canDel? `<button class="del" data-del="${s.id}" aria-label="Borrar venta">×</button>` : "<span></span>"}`;
     box.appendChild(row);
   }
   box.querySelectorAll("button[data-pay]").forEach(b=>b.onclick=()=>{
     const s = sales.find(x=>x.id===b.dataset.pay); if(!s) return;
-    setPay(s.id, s.pay==="efectivo" ? "tarjeta" : s.pay==="tarjeta" ? null : "efectivo");
+    if(s.pay==="tarjeta"){ askVoucher(s.id); return; }
+    setPay(s.id, s.pay==="efectivo" ? "tarjeta" : s.pay==="vale" ? null : "efectivo");
   });
   box.querySelectorAll("[data-assign]").forEach(b=>b.onclick=()=>{
     const s = sales.find(x=>x.id===b.dataset.assign); const g = groups[s.cat+"|"+s.list];
@@ -713,11 +771,11 @@ $("accessBtn").onclick = async () => {
 };
 $("logout").onclick = async () => { try{ await api("logout",{}); }catch(e){} closeSheet(); showLogin(); };
 
-function shrink(file){
+function shrink(file, m = 900){
   return new Promise((res,rej)=>{
     const img = new Image(); const u = URL.createObjectURL(file);
     img.onload = () => {
-      const m = 900, s = Math.min(1, m/Math.max(img.width,img.height));
+      const s = Math.min(1, m/Math.max(img.width,img.height));
       const c = document.createElement("canvas"); c.width = Math.round(img.width*s); c.height = Math.round(img.height*s);
       c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(u);
       c.toBlob(b=> b? res(b) : rej(new Error("blob")), "image/jpeg", 0.82);
@@ -790,18 +848,21 @@ function renderToday(){
   $("todayCount").textContent = ts.length+" "+(ts.length===1?"pieza":"piezas")+" hoy";
 }
 function setTab(t){
-  for(const [tab,view,name] of [["tabSell","sellView","sell"],["tabDay","dayView","day"],["tabProd","prodView","prod"],["tabRes","resView","res"]]){
+  for(const [tab,view,name] of [["tabSell","sellView","sell"],["tabDay","dayView","day"],["tabProd","prodView","prod"],["tabCli","cliView","cli"],["tabRes","resView","res"]]){
     $(tab).setAttribute("aria-selected", t===name); $(view).hidden = t!==name;
   }
+  const sel = document.querySelector('.tabs [aria-selected="true"]'); if(sel && sel.scrollIntoView) sel.scrollIntoView({block:"nearest", inline:"nearest"});
   if(t==="day"){ viewDay = dayKey(new Date()); $("cpText").hidden = true; renderDay(); }
   if(t==="prod") renderProducts();
-  if(t==="res"){ viewMonth = dayKey(new Date()).slice(0,7); renderMonth(); }
+  if(t==="res"){ viewMonth = dayKey(new Date()).slice(0,7); renderMonth(); renderAccounts(); }
+  if(t==="cli") renderClients();
   window.scrollTo(0,0);
 }
 $("tabSell").onclick = ()=>setTab("sell");
 $("tabDay").onclick = ()=>setTab("day");
 $("tabProd").onclick = ()=>setTab("prod");
 $("tabRes").onclick = ()=>setTab("res");
+$("tabCli").onclick = ()=>setTab("cli");
 $("todayBox").onclick = ()=>setTab("day");
 
 function renderProfile(){
@@ -810,10 +871,12 @@ function renderProfile(){
 function renderBadges(){
   const n = lowList().length;
   $("lowBadge").hidden = !n; $("lowBadge").textContent = n;
+  const c = holds.filter(h=>h.status==="abierto").length;
+  $("cliBadge").hidden = !c; $("cliBadge").textContent = c;
   $("tabRes").hidden = !isAdmin();
   if(!isAdmin() && !$("resView").hidden) setTab("sell");
 }
-function refresh(){ renderProfile(); renderBadges(); buildGroups(); renderDto(); renderCats(); renderToday(); if(!$("dayView").hidden) renderDay(); if(!$("prodView").hidden) renderProducts(); if(!$("resView").hidden) renderMonth(); }
+function refresh(){ renderProfile(); renderBadges(); buildGroups(); renderDto(); renderCats(); renderToday(); if(!$("dayView").hidden) renderDay(); if(!$("prodView").hidden) renderProducts(); if(!$("resView").hidden) renderMonth(); if(!$("cliView").hidden) renderClients(); }
 
 /* ---------- monthly summary (owners only) ---------- */
 let viewMonth = dayKey(new Date()).slice(0,7);
@@ -830,7 +893,9 @@ function renderMonth(){
   const noCost = ms.filter(s=>s.cost==null).length;
   $("mPieces").textContent = ms.length; $("mTotal").textContent = eurShort(tot); $("mProfit").textContent = eurShort(prof);
   const byPay = k => round2(ms.filter(s=>(s.pay||null)===k).reduce((a,s)=>a+s.price,0));
-  $("mPay").innerHTML = kv("Efectivo", eur(byPay("efectivo"))) + kv("Tarjeta", eur(byPay("tarjeta"))) + (byPay(null)? kv("Sin indicar", eur(byPay(null))) : "");
+  const mVs = vouchers.filter(v=>dayKey(v.t).slice(0,7)===viewMonth);
+  $("mPay").innerHTML = kv("Efectivo", eur(byPay("efectivo"))) + kv("Tarjeta", eur(byPay("tarjeta"))) + (byPay("vale")? kv("Con vale regalo", eur(byPay("vale"))) : "") + (byPay(null)? kv("Sin indicar", eur(byPay(null))) : "")
+    + (mVs.length? kv(`Vales regalo vendidos (${mVs.length}) <small class="note">aún no son venta</small>`, eur(round2(mVs.reduce((a,v)=>a+v.amount,0)))) : "");
   const n = owners.length || 1;
   const shares = owners.map(o=>({name:o.name, pct: o.share!=null ? o.share : 100/n}));
   /* each owner gets back her equal part of what the pieces cost, plus her % of the profit */
@@ -884,6 +949,181 @@ function showShoot(){
     }catch(x){ $("shootMsg").textContent = $("storeWarn").textContent || "No se ha podido subir. Prueba otra vez."; warn(""); }
   };
 }
+/* ---------- clients: pieces put aside, orders and gift cards ---------- */
+const fmtDay = t => new Date(t).toLocaleDateString("es-ES",{day:"numeric",month:"short"});
+const tel = p => p ? ` · <a href="tel:${esc(p.replace(/[^0-9+]/g,""))}">${esc(p)}</a>` : "";
+function armed(b, label, fn){ /* second tap confirms */
+  b.onclick = () => { if(!b.classList.contains("armed")){ const t = b.textContent; b.classList.add("armed"); b.textContent = label; setTimeout(()=>{ b.classList.remove("armed"); b.textContent = t; },3000); return; } fn(); };
+}
+async function setHold(id, status){
+  const h = holds.find(x=>x.id===id); if(!h) return;
+  const old = h.status; h.status = status; refresh();
+  try{ await api("holdstatus",{id, status}); }catch(e){ h.status = old; refresh(); throw e; }
+}
+function renderClients(){
+  const open = holds.filter(h=>h.status==="abierto");
+  const ap = open.filter(h=>h.kind==="apartado"), en = open.filter(h=>h.kind==="encargo");
+  $("holdList").innerHTML = ap.length ? ap.map(h=>{ const p = PRODUCTS.find(x=>x.ref===h.ref);
+    return `<div class="card"><div class="top"><span><b style="white-space:normal">${esc(h.what)}</b><br><small>Para <b>${esc(h.client)}</b>${tel(h.phone)} · desde el ${fmtDay(h.t)}${h.deposit? ` · señal ${eur(h.deposit)}`:""}</small></span><b>${p&&p.price!=null? eurShort(p.price):""}</b></div>
+      ${h.note? `<small>${esc(h.note)}</small>`:""}
+      <div class="acts"><button class="go" data-take="${h.id}">Se la lleva · cobrar</button><button data-undo="${h.id}">Ya no la quiere</button></div></div>`; }).join("")
+    : `<p class="note">No hay piezas apartadas.</p>`;
+  $("orderList").innerHTML = en.length ? en.map(h=>`<div class="card"><div class="top"><span><b style="white-space:normal">${esc(h.what)}</b><br><small><b>${esc(h.client)}</b>${tel(h.phone)} · ${fmtDay(h.t)}</small></span></div>
+      ${h.note? `<small>${esc(h.note)}</small>`:""}
+      <div class="acts"><button class="go" data-done="${h.id}">Ya está</button><button data-undo="${h.id}">Anular</button></div></div>`).join("")
+    : `<p class="note">No hay encargos pendientes.</p>`;
+  document.querySelectorAll("#holdList [data-take]").forEach(b=>b.onclick=async()=>{
+    const h = holds.find(x=>x.id===b.dataset.take); const p = PRODUCTS.find(x=>x.ref===h.ref);
+    if(!p || p.price==null){ showToast("Esa pieza no tiene precio. Ponle precio en Productos."); return; }
+    try{ await setHold(h.id,"hecho"); }catch(e){ return; }
+    await sell(p);
+    if(h.deposit) showToast(`Apuntado: ${p.name} · ${eur(withDto(p.price))}. Dejó ${eur(h.deposit)} de señal: cobra ${eur(round2(withDto(p.price)-h.deposit))}.`, true, true);
+  });
+  document.querySelectorAll("#cliView [data-undo]").forEach(b=>armed(b,"¿Seguro?",()=>setHold(b.dataset.undo,"anulado").catch(()=>{})));
+  document.querySelectorAll("#orderList [data-done]").forEach(b=>b.onclick=()=>setHold(b.dataset.done,"hecho").then(()=>showToast("Encargo hecho. Avisa a la clienta.")).catch(()=>{}));
+  const act = vouchers.filter(v=>v.balance>0).sort((a,b)=>a.t<b.t?1:-1), spent = vouchers.length - act.length;
+  $("vList").innerHTML = (act.length ? act.map(v=>`<div class="card"><div class="top"><span><span class="code">${esc(v.code)}</span><br><small>${v.holder? "Para "+esc(v.holder)+" · ":""}vendido el ${fmtDay(v.t)} por ${esc(v.seller)} · ${eur(v.amount)}</small></span><b>quedan ${eur(v.balance)}</b></div>
+      ${isAdmin() && v.balance===v.amount ? `<div class="acts"><button data-vdel="${esc(v.code)}">Borrar (se apuntó por error)</button></div>`:""}</div>`).join("")
+    : `<p class="note">No hay vales con saldo.</p>`) + (spent? `<p class="note">${spent} ${spent===1?"vale gastado":"vales gastados"}.</p>`:"");
+  document.querySelectorAll("[data-vdel]").forEach(b=>armed(b,"Toca otra vez para borrar",async()=>{ try{ await api("vdel",{code:b.dataset.vdel}); await load(); }catch(e){ showToast($("storeWarn").textContent||"No se ha podido."); warn(""); } }));
+}
+function productPicker(box, onPick, withHidden){
+  box.innerHTML = `<input class="search" type="search" placeholder="Buscar pieza (nombre o referencia)" autocomplete="off"><div class="list"></div>`;
+  const inp = box.querySelector("input"), res = box.querySelector(".list");
+  inp.oninput = () => { const q = norm(inp.value.trim()); res.innerHTML = ""; if(!q) return;
+    PRODUCTS.filter(p=>(withHidden || !p.hidden) && norm(p.name+" "+p.cat+" "+p.ref).includes(q)).slice(0,8).forEach(p=>res.appendChild(itemButton(p, p=>{ inp.value=""; res.innerHTML=""; onPick(p); }))); };
+  return inp;
+}
+$("newHold").onclick = () => {
+  openSheet("Apartar una pieza"); let pick = null;
+  $("sheetBody").innerHTML = `<div id="hPick"></div><div id="hSel"></div>
+    <div class="field"><label class="lbl" for="hClient">Clienta</label><input id="hClient" autocomplete="off"></div>
+    <div class="two"><div class="field"><label class="lbl" for="hPhone">Teléfono (opcional)</label><input id="hPhone" type="tel" autocomplete="off"></div>
+    <div class="field"><label class="lbl" for="hDep">Señal que deja (€)</label><input id="hDep" type="number" inputmode="decimal" min="0" step="1"></div></div>
+    <div class="field"><label class="lbl" for="hNote">Nota (opcional)</label><input id="hNote" placeholder="ej. viene el viernes" autocomplete="off"></div>
+    <button class="primary" id="hSave">Apartar</button><p class="note" id="hErr" hidden></p>`;
+  const inp = productPicker($("hPick"), p=>{ pick = p; $("hSel").innerHTML = `<div class="item big">${thumbHTML(p)}<span class="nm">${esc(p.name)}</span><span class="meta">${p.price!=null? eurShort(p.price):""} · quedan ${left(p)}</span></div>`; });
+  $("hSave").onclick = async () => {
+    const err = m => { $("hErr").hidden = false; $("hErr").textContent = m; };
+    if(!pick) return err("Busca y elige la pieza que se aparta.");
+    if(!$("hClient").value.trim()) return err("Escribe el nombre de la clienta.");
+    const h = {id:newId(), t:new Date().toISOString(), kind:"apartado", ref:pick.ref, what:pick.name, client:$("hClient").value.trim(), phone:$("hPhone").value.trim(),
+      deposit: parseFloat(String($("hDep").value).replace(",","."))||null, note:$("hNote").value.trim(), status:"abierto"};
+    holds.push(h); closeSheet(); refresh();
+    try{ await api("hold", h); showToast(`Apartada para ${h.client}: ${h.what}`); }catch(e){ holds = holds.filter(x=>x!==h); refresh(); }
+  };
+  setTimeout(()=>inp.focus(),50);
+};
+$("newOrder").onclick = () => {
+  openSheet("Apuntar un encargo");
+  $("sheetBody").innerHTML = `<div class="field"><label class="lbl" for="oWhat">Qué ha pedido</label><input id="oWhat" placeholder="ej. aros de plata medianos" autocomplete="off"></div>
+    <div class="two"><div class="field"><label class="lbl" for="oClient">Clienta</label><input id="oClient" autocomplete="off"></div>
+    <div class="field"><label class="lbl" for="oPhone">Teléfono (opcional)</label><input id="oPhone" type="tel" autocomplete="off"></div></div>
+    <div class="field"><label class="lbl" for="oNote">Nota (opcional)</label><input id="oNote" autocomplete="off"></div>
+    <button class="primary" id="oSave2">Guardar encargo</button><p class="note" id="oErr2" hidden></p>`;
+  $("oSave2").onclick = async () => {
+    if(!$("oWhat").value.trim() || !$("oClient").value.trim()){ $("oErr2").hidden=false; $("oErr2").textContent="Escribe qué ha pedido y quién."; return; }
+    const h = {id:newId(), t:new Date().toISOString(), kind:"encargo", ref:null, what:$("oWhat").value.trim(), client:$("oClient").value.trim(), phone:$("oPhone").value.trim(), note:$("oNote").value.trim(), status:"abierto"};
+    holds.push(h); closeSheet(); refresh();
+    try{ await api("hold", h); showToast("Encargo apuntado."); }catch(e){ holds = holds.filter(x=>x!==h); refresh(); }
+  };
+  setTimeout(()=>$("oWhat").focus(),50);
+};
+$("newVoucher").onclick = () => {
+  openSheet("Vender un vale regalo"); let pay = null;
+  $("sheetBody").innerHTML = `<div class="pills">${[10,20,25,30,50].map(v=>`<button class="pill" data-amt="${v}">${v} €</button>`).join("")}</div>
+    <div class="two"><div class="field"><label class="lbl" for="vAmt">Importe (€)</label><input id="vAmt" type="number" inputmode="decimal" min="1" step="1"></div>
+    <div class="field"><label class="lbl" for="vHolder">Para quién (opcional)</label><input id="vHolder" autocomplete="off"></div></div>
+    <div class="pills"><span class="lbl" style="align-self:center">Cobrado en</span><button class="pill" data-vp="efectivo" aria-pressed="false">Efectivo</button><button class="pill" data-vp="tarjeta" aria-pressed="false">Tarjeta</button></div>
+    <button class="primary" id="vSave">Crear vale</button><p class="note" id="vErr" hidden></p>`;
+  $("sheetBody").querySelectorAll("[data-amt]").forEach(b=>b.onclick=()=>{ $("vAmt").value = b.dataset.amt; });
+  $("sheetBody").querySelectorAll("[data-vp]").forEach(b=>b.onclick=()=>{ pay = b.dataset.vp; $("sheetBody").querySelectorAll("[data-vp]").forEach(x=>x.setAttribute("aria-pressed", x===b)); });
+  $("vSave").onclick = async () => {
+    const amount = parseFloat(String($("vAmt").value).replace(",","."));
+    if(!(amount>0)){ $("vErr").hidden=false; $("vErr").textContent="Elige el importe del vale."; return; }
+    $("vSave").disabled = true;
+    try{
+      const r = await api("vsell",{amount, holder:$("vHolder").value.trim(), pay});
+      $("sheetTitle").textContent = "Vale creado";
+      $("sheetBody").innerHTML = `<p>Escribe este código en la tarjeta del vale. Con él se paga después.</p><div class="bigcode code">${esc(r.code)}</div>
+        <p class="note">${eur(amount)}${$("vHolder")? "":""}. Se puede gastar en varias compras hasta agotarlo.</p><button class="primary" id="vOk">Hecho</button>`;
+      $("vOk").onclick = closeSheet; load().catch(()=>{});
+    }catch(e){ $("vSave").disabled = false; $("vErr").hidden=false; $("vErr").textContent=$("storeWarn").textContent||"No se ha podido."; warn(""); }
+  };
+};
+
+/* ---------- accounts (owners): global figures, sharing out, purchases, backups ---------- */
+const getsPays = v => v < 0 ? `pone ${eur(-v)}` : `recibe ${eur(v)}`;
+const ownerName = id => id ? ((owners.find(o=>o.id===id)||{}).name || "?") : "A medias";
+async function renderAccounts(){
+  let g, e;
+  try{ [g, e] = await Promise.all([api("globals"), api("entries")]); }catch(x){ $("gBox").innerHTML = `<p class="note">No se han podido cargar las cifras.</p>`; return; }
+  const since = g.sales.first ? new Date(g.sales.first).toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"}) : null;
+  $("gBox").innerHTML =
+    kv(`Ventas${since? ` <small class="note">desde el ${since}</small>`:""}<br><small class="note">${g.sales.n} piezas</small>`, eur(g.sales.revenue)) +
+    kv(`Beneficio <small class="note">cobrado menos coste</small>`, eur(g.sales.profit)) +
+    kv(`Mercancía comprada<br><small class="note">${g.invested.n} compras apuntadas · ${Object.entries(g.invested.byOwner).map(([k,v])=>`${esc(k)} ${eur(v)}`).join(" · ")}</small>`, eur(g.invested.total)) +
+    kv(`Stock ahora<br><small class="note">${g.stock.units} piezas · a precio de venta ${eur(g.stock.atPrice)}${g.stock.noCost? ` · ${g.stock.noCost} sin coste apuntado`:""}</small>`, eur(g.stock.atCost)+" a coste") +
+    kv(`Vales regalo sin gastar<br><small class="note">${g.vouchers.n} vendidos por ${eur(g.vouchers.sold)}</small>`, eur(g.vouchers.left)) +
+    (g.own.n? kv(`Piezas para las dueñas <small class="note">a coste</small>`, `${g.own.n} · ${eur(g.own.paid)}`) : "") +
+    kv("Apartados y encargos abiertos", `${g.holds.apartado} · ${g.holds.encargo}`);
+  const p = g.pending;
+  const from = p.since ? `desde el reparto del ${new Date(p.since).toLocaleDateString("es-ES",{day:"numeric",month:"long"})}` : "desde el principio";
+  $("rBox").innerHTML = `<p class="note" style="margin:0">Lo que toca a cada una ${from}: ${p.count} ${p.count===1?"venta":"ventas"} por ${eur(p.revenue)}, beneficio ${eur(p.profit)}${p.bought? `, compras ${eur(p.bought)}`:""}.</p>` +
+    p.owners.filter(o=>o.pct>0 || o.total).map(o=>kv(`${esc(o.name)} · ${Math.round(o.pct*10)/10} %<br><small class="note">coste ${eur(o.cost)} + beneficio ${eur(o.profit)}${o.adjust? ` ${o.adjust>0?"+":"−"} ${eur(Math.abs(o.adjust))} por compras`:""}</small>`, getsPays(o.total))).join("") +
+    (p.bought? `<p class="note" style="margin:0">«Por compras»: la mercancía es a medias, así que quien pagó más de su mitad lo recupera aquí y quien pagó menos lo pone.</p>`:"") +
+    `<button class="primary" id="settleBtn">Marcar como repartido hoy</button>` +
+    (g.settlements.length? `<p class="lbl" style="margin:6px 0 0">Repartos anteriores</p>` + g.settlements.map((s,i)=>kv(`${new Date(s.t).toLocaleDateString("es-ES",{day:"numeric",month:"short",year:"numeric"})} <small class="note">por ${esc(s.author)}</small><br><small class="note">${(s.data.owners||[]).map(o=>`${esc(o.name)} ${getsPays(o.total)}`).join(" · ")}</small>`, i===0? `<button class="ghost" id="unsettle" style="padding:6px 10px">Deshacer</button>` : eur(s.data.revenue||0))).join("") : "");
+  armed($("settleBtn"), "Toca otra vez para confirmar", async()=>{ try{ await api("settle",{}); showToast("Reparto apuntado. Lo siguiente empieza desde hoy."); renderAccounts(); }catch(x){ showToast($("storeWarn").textContent||"No se ha podido."); warn(""); } });
+  if($("unsettle")) armed($("unsettle"), "¿Seguro?", async()=>{ try{ await api("unsettle",{}); renderAccounts(); }catch(x){} });
+  const days = g.lastDownload ? Math.floor((Date.now()/1000 - Number(g.lastDownload))/86400) : null;
+  $("bBox").innerHTML = `<p class="note" style="margin:0">Cada semana se guarda sola una copia completa en el servidor (las 8 últimas).${g.backups.length? ` Última: ${new Date(g.backups[0].day+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"long"})}.` : " La primera se hace hoy."}</p>` +
+    (days===null || days>30 ? `<p class="banner warn" style="margin:0">${days===null? "Aún no habéis descargado ningún Excel." : `Hace ${days} días que no descargáis el Excel.`} Descargad ventas y stock una vez al mes y guardadlos en el ordenador o en Drive: si el servidor se estropea, las copias de dentro se pierden con él.</p>` : "");
+  $("eList").innerHTML = e.entries.length ? e.entries.map(x=>{ const u = x.lines.reduce((a,l)=>a+l.qty,0);
+    return `<div class="card"><div class="top"><span><b style="white-space:normal">${esc(x.supplier||"Compra")}</b><br><small>${new Date(x.day+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"short",year:"numeric"})} · pagó ${esc(ownerName(x.paid_by))}${u? ` · ${u} ${u===1?"pieza":"piezas"} al stock`:""}</small></span><b>${eur(x.total)}</b></div>
+      ${x.note? `<small>${esc(x.note)}</small>`:""}
+      <div class="acts">${x.doc? `<a href="api.php?a=foto&id=${encodeURIComponent(x.doc)}" target="_blank" rel="noopener">Ver factura</a>`:`<small>sin factura</small>`}<button data-edel="${x.id}">Borrar</button></div></div>`; }).join("")
+    : `<p class="note">Aún no hay compras apuntadas. Apunta aquí cada pedido de mercancía con su factura.</p>`;
+  document.querySelectorAll("[data-edel]").forEach(b=>armed(b,"Toca otra vez: se quitan sus piezas del stock",async()=>{ try{ await api("delentry",{id:b.dataset.edel}); await load(); renderAccounts(); }catch(x){} }));
+}
+$("newEntry").onclick = () => {
+  openSheet("Apuntar una compra de mercancía"); const lines = []; let docFile = null;
+  $("sheetBody").innerHTML = `<div class="two"><div class="field"><label class="lbl" for="eDay">Fecha</label><input id="eDay" type="date" value="${dayKey(new Date())}"></div>
+    <div class="field"><label class="lbl" for="eTotal">Importe total (€)</label><input id="eTotal" type="number" inputmode="decimal" min="0" step="0.01"></div></div>
+    <div class="field"><label class="lbl" for="eSup">Proveedor</label><input id="eSup" placeholder="ej. mayorista, web…" autocomplete="off"></div>
+    <div class="field"><label class="lbl" for="ePaid">Quién lo pagó</label><select id="ePaid"><option value="0">A medias</option>${owners.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></div>
+    <div class="photo-edit"><span class="thumb" id="eDocPrev">factura</span><div style="display:flex;flex-direction:column;gap:6px;flex:1">
+      <label class="ghost" for="eDoc" style="text-align:center">Foto o PDF de la factura</label><input id="eDoc" type="file" accept="image/*,application/pdf" hidden></div></div>
+    <div class="field"><label class="lbl" for="eNote">Nota (opcional)</label><input id="eNote" autocomplete="off"></div>
+    <p class="lbl" style="margin:4px 0 0">Piezas que entran al stock</p><div id="eLines" class="list"></div><div id="ePick"></div>
+    <p class="note" style="margin:0">¿Pieza nueva? Créala antes en Productos con 0 unidades y luego súmala aquí.</p>
+    <button class="primary" id="eSave">Guardar compra</button><p class="note" id="eErr" hidden></p>`;
+  const drawLines = () => { $("eLines").innerHTML = lines.map((l,i)=>`<div class="item"><span class="nm">${esc(l.p.name)}<br><small class="note">ref ${l.p.ref} · ahora quedan ${left(l.p)}</small></span>
+      <span class="stepper"><button data-dec="${i}">−</button><b>${l.qty}</b><button data-inc="${i}">+</button></span></div>`).join("");
+    $("eLines").querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>{ const l = lines[b.dataset.dec]; l.qty--; if(l.qty<=0) lines.splice(b.dataset.dec,1); drawLines(); });
+    $("eLines").querySelectorAll("[data-inc]").forEach(b=>b.onclick=()=>{ lines[b.dataset.inc].qty++; drawLines(); }); };
+  productPicker($("ePick"), p=>{ const l = lines.find(x=>x.p.ref===p.ref); if(l) l.qty++; else lines.push({p, qty:1}); drawLines(); }, true);
+  $("eDoc").onchange = e => { docFile = e.target.files[0] || null; if(!docFile) return;
+    $("eDocPrev").outerHTML = docFile.type==="application/pdf" ? `<span class="thumb" id="eDocPrev">PDF ✓</span>` : `<img class="thumb" id="eDocPrev" src="${URL.createObjectURL(docFile)}" alt="">`; };
+  $("eSave").onclick = async () => {
+    const err = m => { $("eErr").hidden = false; $("eErr").textContent = m; };
+    const total = parseFloat(String($("eTotal").value).replace(",","."));
+    if(!(total>=0)) return err("Escribe el importe total de la factura.");
+    $("eSave").disabled = true; $("eSave").textContent = "Guardando…";
+    try{
+      let doc = null;
+      if(docFile){
+        const fd = new FormData(); fd.append("doc","1");
+        if(docFile.type==="application/pdf") fd.append("f", docFile, "factura.pdf"); else fd.append("f", await shrink(docFile, 2000), "factura.jpg");
+        doc = (await api("photo", fd)).photo;
+      }
+      await api("entry",{day:$("eDay").value, total, supplier:$("eSup").value.trim(), paid_by:Number($("ePaid").value), note:$("eNote").value.trim(), doc, lines:lines.map(l=>({ref:l.p.ref, qty:l.qty}))});
+      closeSheet(); showToast(`Compra apuntada${lines.length? ` y ${lines.reduce((a,l)=>a+l.qty,0)} piezas sumadas al stock`:""}.`);
+      await load(); renderAccounts();
+    }catch(x){ $("eSave").disabled = false; $("eSave").textContent = "Guardar compra"; err($("storeWarn").textContent||"No se ha podido guardar."); warn(""); }
+  };
+};
+
 /* ---------- add to the phone's home screen ---------- */
 let installEvt = null;
 const standalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;

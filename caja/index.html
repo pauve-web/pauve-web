@@ -130,6 +130,10 @@ section h2 small{font-family:var(--body);font-size:.8rem;color:var(--muted);font
 .sale .w small{display:block;color:var(--muted);font-size:.8rem}
 .sale .p{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .sale .p small{display:block;font-weight:500;color:var(--muted);font-size:.75rem}
+.owntag{display:inline-block;font-size:.72rem;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:1px 6px;margin-top:3px}
+.sale.own{border-style:dashed}
+.takebar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:12px;border:1.5px dashed var(--accent);background:var(--accent-soft);font-weight:600;font-size:.9rem}
+.takebar.on{border-style:solid;background:var(--accent);color:var(--accent-fg)}
 .tag{display:inline-block;font-size:.72rem;font-weight:700;color:var(--warn);background:var(--accent-soft);border-radius:6px;padding:1px 6px;margin-top:2px;border:0}
 .del{border:0;background:transparent;color:var(--muted);font-size:1.1rem;width:34px;height:34px;border-radius:8px}
 .del.armed{background:var(--danger);color:#fff;width:auto;padding:0 10px;font-size:.8rem;font-weight:700}
@@ -330,6 +334,7 @@ function localStorageSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 
 /* ---------- derived ---------- */
 const withDto = p => round2(p*(1-dto/100));
+const isOwn = s => !!s.own;
 const soldCount = ref => sales.filter(s=>s.ref===ref).length;
 const left = p => (p.stock||0) - soldCount(p.ref);
 const photoURL = p => p && p.photo ? "api.php?a=foto&id="+encodeURIComponent(p.photo) : null;
@@ -421,6 +426,16 @@ function openGroup(g, forAssign){
   const body = $("sheetBody"); body.innerHTML="";
   openSheet(`${g.cat} · ${eurShort(g.price)}`+(dto&&!forAssign? `  →  ${eurShort(withDto(g.price))}`:"")+(forAssign?" · ¿cuál fue?":""), COLORS[g.price]);
   const list = document.createElement("div"); list.className="list";
+  let taking = false;
+  if(!forAssign && isAdmin()){
+    const t = document.createElement("button"); t.className = "takebar";
+    const paint = () => { t.className = "takebar"+(taking?" on":""); t.innerHTML = taking
+      ? `<span>Me la quedo yo · toca la pieza</span><span>a precio de coste</span>`
+      : `<span>¿Te quedas una pieza para ti?</span><span>a precio de coste ›</span>`;
+      const u = list.querySelector(".unknown"); if(u) u.hidden = taking; };
+    t.onclick = () => { taking = !taking; paint(); };
+    list.appendChild(t); setTimeout(paint);
+  }
   if(!forAssign){
     const u = document.createElement("button");
     u.className="item unknown";
@@ -429,7 +444,7 @@ function openGroup(g, forAssign){
     list.appendChild(u);
   }
   const sorted = [...g.items].sort((a,b)=> (left(b)>0)-(left(a)>0) || a.name.localeCompare(b.name,"es"));
-  for(const p of sorted) list.appendChild(itemButton(p, p=> forAssign ? assign(p) : sell(p)));
+  for(const p of sorted) list.appendChild(itemButton(p, p=> forAssign ? assign(p) : taking ? take(p) : sell(p)));
   body.appendChild(list);
 }
 function avgCost(g){ const c = g.items.filter(p=>p.cost!=null); return c.length? round2(c.reduce((s,p)=>s+p.cost,0)/c.length) : null; }
@@ -462,6 +477,17 @@ async function sell(p){
   const lowNote = prod && left(prod)<=1 ? ` · ${left(prod)<=0? "Era la última" : "Queda 1"}: anotada para reponer` : "";
   showToast(`Apuntado: ${p.name? p.name : p.cat+" "+eurShort(p.price)+" (sin concretar)"} · ${eur(charged)}${lowNote}`, true, true);
   pendingSell = api("sell", s);
+  try{ await pendingSell; }
+  catch(e){ sales = sales.filter(x=>x.id!==s.id); refresh(); $("toast").hidden = true; }
+}
+/* an owner keeps a piece for herself at cost price: it takes stock out but brings no profit */
+async function take(p){
+  if(p.cost==null){ showToast("Esta pieza no tiene coste apuntado. Pónselo en Productos primero."); return; }
+  const s = {id:newId(), t:new Date().toISOString(), ref:p.ref, name:p.name, cat:p.cat, list:p.price ?? p.cost, dto:0,
+    price:p.cost, cost:p.cost, manual:false, seller:myName, pay:null, own:true};
+  sales.push(s); lastId = s.id; closeSheet(); refresh();
+  showToast(`Para ${myName}: ${p.name} · pagas ${eur(p.cost)} (precio de coste)`, true, false);
+  pendingSell = api("take", {id:s.id, ref:p.ref});
   try{ await pendingSell; }
   catch(e){ sales = sales.filter(x=>x.id!==s.id); refresh(); $("toast").hidden = true; }
 }
@@ -518,25 +544,25 @@ function renderDay(){
   const d = new Date(viewDay+"T12:00:00");
   const isToday = viewDay===dayKey(new Date());
   $("dayLabel").textContent = (isToday?"Hoy, ":"")+d.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
-  const ds = daySales();
+  const all = daySales(), ds = all.filter(s=>!isOwn(s)), mine = all.filter(isOwn);
   const tot = ds.reduce((a,s)=>a+s.price,0);
   const prof = ds.reduce((a,s)=>a+(s.cost!=null? s.price-s.cost : 0),0);
   $("dPieces").textContent = ds.length; $("dTotal").textContent = eurShort(round2(tot)); $("dProfit").textContent = eurShort(round2(prof));
   const byPay = k => round2(ds.filter(s=>(s.pay||null)===k).reduce((a,s)=>a+s.price,0));
   $("dPay").textContent = ds.length ? `Efectivo ${eur(byPay("efectivo"))} · Tarjeta ${eur(byPay("tarjeta"))}${byPay(null)? ` · Sin indicar ${eur(byPay(null))}`:""}` : "";
-  renderDaySplit(ds, prof);
+  renderDaySplit(ds, prof, mine);
   const pend = ds.filter(s=>!s.ref && !s.manual).length;
   $("pendBanner").hidden = !pend;
   $("pendBanner").textContent = `${pend} ${pend===1?"venta":"ventas"} sin concretar la pieza. Toca «¿Cuál fue?» cuando tengas un momento, para que el stock cuadre.`;
   const box = $("sales"); box.innerHTML = "";
-  if(!ds.length) box.innerHTML = `<p class="note">No hay ventas apuntadas este día.</p>`;
+  if(!all.length) box.innerHTML = `<p class="note">No hay ventas apuntadas este día.</p>`;
   const recent = t => Date.now()-new Date(t).getTime() < 86400000;
-  for(const s of ds){
-    const row = document.createElement("div"); row.className="sale";
+  for(const s of all){
+    const row = document.createElement("div"); row.className="sale"+(isOwn(s)?" own":"");
     const time = new Date(s.t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
     const canDel = isAdmin() || recent(s.t);
     row.innerHTML = `<span class="t">${time}</span>
-      <span class="w">${esc(label(s))}<small>${esc(s.cat)}${s.ref? " · ref "+s.ref:""}${s.seller? " · "+esc(s.seller):""}</small><button class="paychip${s.pay?" set":""}" data-pay="${s.id}">${s.pay==="tarjeta"?"Tarjeta":s.pay==="efectivo"?"Efectivo":"¿Efectivo o tarjeta?"}</button>${(!s.ref&&!s.manual)?`<button class="tag" data-assign="${s.id}">¿Cuál fue?</button>`:""}</span>
+      <span class="w">${esc(label(s))}<small>${esc(s.cat)}${s.ref? " · ref "+s.ref:""}${s.seller? " · "+esc(s.seller):""}</small>${isOwn(s)? `<span class="owntag">Se la queda ${esc(s.seller||"una dueña")} · a coste</span>` : `<button class="paychip${s.pay?" set":""}" data-pay="${s.id}">${s.pay==="tarjeta"?"Tarjeta":s.pay==="efectivo"?"Efectivo":"¿Efectivo o tarjeta?"}</button>`}${(!s.ref&&!s.manual)?`<button class="tag" data-assign="${s.id}">¿Cuál fue?</button>`:""}</span>
       <span class="p">${eur(s.price)}${s.dto?`<small>−${s.dto} % de ${eurShort(s.list)}</small>`:""}</span>
       ${canDel? `<button class="del" data-del="${s.id}" aria-label="Borrar venta">×</button>` : "<span></span>"}`;
     box.appendChild(row);
@@ -556,7 +582,8 @@ function renderDay(){
 }
 /* chart of the day's real profit split between the owners (owners only) */
 const SPLIT_COLORS = ["#7b2d55", "#b07a12", "#2f6f8f", "#5b7a2e"];
-function renderDaySplit(ds, prof){
+function renderDaySplit(ds, prof, mine){
+  mine = mine || [];
   const box = $("dSplit");
   if(!isAdmin() || !owners.length){ box.hidden = true; box.innerHTML = ""; return; }
   box.hidden = false;
@@ -564,6 +591,8 @@ function renderDaySplit(ds, prof){
   const sh = owners.map((o,i)=>({name:o.name, pct: o.share!=null ? o.share : 100/n, color: SPLIT_COLORS[i % SPLIT_COLORS.length]})).filter(o=>o.pct>0).sort((a,b)=>b.pct-a.pct);
   const cost = round2(ds.reduce((a,s)=>a+(s.cost!=null? s.cost : 0),0));
   const p = round2(prof);
+  const takenBy = {}; mine.forEach(s=>{ const k = s.seller||"una dueña"; takenBy[k] = round2((takenBy[k]||0)+s.price); });
+  const ownNote = mine.length ? `<p class="note" style="margin:0"><b>Piezas para las dueñas:</b> ${Object.entries(takenBy).map(([k,v])=>`${esc(k)} paga ${eur(v)}`).join(" · ")} (precio de coste, sin beneficio). Ese dinero devuelve el coste a partes iguales: ${eur(round2(Object.values(takenBy).reduce((a,v)=>a+v,0)/n))} para cada una.</p>` : "";
   const bar = p > 0
     ? sh.map(o=>`<span style="width:${o.pct}%;background:${o.color}">${Math.round(o.pct)} %</span>`).join("")
     : `<span style="width:100%;color:var(--muted);font-weight:500">${ds.length? "Sin beneficio este día" : "Aún no hay ventas"}</span>`;
@@ -572,7 +601,7 @@ function renderDaySplit(ds, prof){
   box.innerHTML = `<h3><span>Beneficio real del día</span><b>${eur(p)}</b></h3>
     <div class="bar" role="img" aria-label="Reparto del beneficio">${bar}</div>
     <div class="who">${who}</div>
-    <p class="note" style="margin:0">Beneficio = cobrado (${eur(round2(ds.reduce((a,s)=>a+s.price,0)))}) menos lo que costaron las piezas (${eur(cost)}). Ese coste vuelve a partes iguales${n? `: ${eur(round2(cost/n))} cada una` : ""}.${noCost? ` ${noCost} ${noCost===1?"venta no tiene":"ventas no tienen"} coste y cuenta${noCost===1?"":"n"} como beneficio 0.` : ""}</p>`;
+    <p class="note" style="margin:0">Beneficio = cobrado (${eur(round2(ds.reduce((a,s)=>a+s.price,0)))}) menos lo que costaron las piezas (${eur(cost)}). Ese coste vuelve a partes iguales${n? `: ${eur(round2(cost/n))} cada una` : ""}.${noCost? ` ${noCost} ${noCost===1?"venta no tiene":"ventas no tienen"} coste y cuenta${noCost===1?"":"n"} como beneficio 0.` : ""}</p>${ownNote}`;
 }
 function copyText(txt, btn, okLabel, resetLabel){
   const ta = $("cpText"); ta.value = txt;
@@ -582,10 +611,11 @@ function copyText(txt, btn, okLabel, resetLabel){
 }
 $("copyBtn").textContent = "Copiar resumen del día";
 $("copyBtn").onclick = () => {
-  const ds = daySales(); const d = new Date(viewDay+"T12:00:00");
+  const all = daySales(), ds = all.filter(s=>!isOwn(s)), mine = all.filter(isOwn); const d = new Date(viewDay+"T12:00:00");
   const lines = ds.map((s,i)=>`${i+1}. ${s.cat} · ${label(s)}${s.ref?" (ref "+s.ref+")":""} · ${eur(s.price)}${s.dto?` (−${s.dto} %)`:""}${s.pay?" · "+s.pay:""}${(!s.ref&&!s.manual)?" · SIN CONCRETAR":""}`);
   const tot = ds.reduce((a,s)=>a+s.price,0);
-  const txt = `Ventas PB x Pauvé · ${d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})}\n`+(lines.join("\n")||"Sin ventas")+`\nTotal: ${ds.length} ${ds.length===1?"pieza":"piezas"} · ${eur(round2(tot))}`;
+  const txt = `Ventas PB x Pauvé · ${d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})}\n`+(lines.join("\n")||"Sin ventas")+`\nTotal: ${ds.length} ${ds.length===1?"pieza":"piezas"} · ${eur(round2(tot))}`
+    + (mine.length? `\nPara las dueñas (a coste): `+mine.map(s=>`${s.seller} · ${label(s)} · ${eur(s.price)}`).join("; ") : "");
   copyText(txt, $("copyBtn"), "Copiado", "Copiar resumen del día");
 };
 
@@ -733,7 +763,7 @@ function openEditor(p){
 
 /* ---------- header + tabs ---------- */
 function renderToday(){
-  const k = dayKey(new Date()); const ts = sales.filter(s=>dayKey(s.t)===k);
+  const k = dayKey(new Date()); const ts = sales.filter(s=>dayKey(s.t)===k && !isOwn(s));
   $("todayTotal").textContent = eur(round2(ts.reduce((a,s)=>a+s.price,0)));
   $("todayCount").textContent = ts.length+" "+(ts.length===1?"pieza":"piezas")+" hoy";
 }
@@ -772,7 +802,7 @@ const kv = (k,v) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`;
 function renderMonth(){
   const [y,m] = viewMonth.split("-").map(Number);
   $("monthLabel").textContent = new Date(y, m-1, 15).toLocaleDateString("es-ES",{month:"long",year:"numeric"});
-  const ms = sales.filter(s=>dayKey(s.t).slice(0,7)===viewMonth);
+  const msAll = sales.filter(s=>dayKey(s.t).slice(0,7)===viewMonth), ms = msAll.filter(s=>!isOwn(s)), mine = msAll.filter(isOwn);
   const tot = round2(ms.reduce((a,s)=>a+s.price,0));
   const prof = round2(ms.reduce((a,s)=>a+(s.cost!=null? s.price-s.cost : 0),0));
   const noCost = ms.filter(s=>s.cost==null).length;
@@ -783,8 +813,11 @@ function renderMonth(){
   const shares = owners.map(o=>({name:o.name, pct: o.share!=null ? o.share : 100/n}));
   /* each owner gets back her equal part of what the pieces cost, plus her % of the profit */
   const cost = round2(ms.reduce((a,s)=>a+(s.cost!=null? s.cost : 0),0));
+  const takenBy = {}; mine.forEach(s=>{ const k = s.seller||"una dueña"; takenBy[k] = round2((takenBy[k]||0)+s.price); });
+  const ownCost = round2(mine.reduce((a,s)=>a+s.price,0));
   $("mShare").innerHTML = shares.map(o=>{ const c = round2(cost/n), b = round2(prof*o.pct/100);
       return kv(`${esc(o.name)} · ${Math.round(o.pct*10)/10} % del beneficio<br><small class="note">recupera ${eur(c)} de coste + ${eur(b)} de beneficio</small>`, eur(round2(c+b))); }).join("") +
+    (mine.length? `<p class="note"><b>Piezas que se han quedado las dueñas</b> (${mine.length}): ${Object.entries(takenBy).map(([k,v])=>`${esc(k)} paga ${eur(v)}`).join(" · ")}. Es el precio de coste, así que no dan beneficio. Ese dinero (${eur(ownCost)}) devuelve el coste a partes iguales: ${eur(round2(ownCost/n))} para cada una.</p>` : "") +
     `<p class="note">El coste de las piezas vendidas (${eur(cost)}) vuelve a partes iguales, porque la mercancía se compró a medias. El beneficio es lo cobrado menos ese coste.${noCost? ` ${noCost} ${noCost===1?"venta no tiene":"ventas no tienen"} coste (precio a mano) y cuentan como beneficio 0.`:""} Los porcentajes se cambian en Productos › Accesos y contraseñas.</p>`;
   const cats = CAT_ORDER.map(c=>{ const cs = ms.filter(s=>s.cat===c); return [c, cs.length, round2(cs.reduce((a,s)=>a+s.price,0))]; }).filter(x=>x[1]);
   $("mCats").innerHTML = cats.length ? cats.map(([c,k,t])=>kv(`${c} · ${k} ${k===1?"pieza":"piezas"}`, eur(t))).join("") : `<p class="note">Sin ventas este mes.</p>`;

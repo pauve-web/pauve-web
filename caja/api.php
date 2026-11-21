@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS products (ref INTEGER PRIMARY KEY, name TEXT, cat TEX
 CREATE TABLE IF NOT EXISTS sales (id TEXT PRIMARY KEY, t TEXT, ref INTEGER, name TEXT, cat TEXT, list REAL, dto REAL, price REAL, cost REAL, manual INTEGER, seller TEXT);");
 
 /* columns added after the first version: add them if the database is older */
-foreach (['ALTER TABLE tokens ADD COLUMN owner_id INTEGER', 'ALTER TABLE sales ADD COLUMN pay TEXT', 'ALTER TABLE owners ADD COLUMN share REAL'] as $sql) {
+foreach (['ALTER TABLE tokens ADD COLUMN owner_id INTEGER', 'ALTER TABLE sales ADD COLUMN pay TEXT', 'ALTER TABLE owners ADD COLUMN share REAL', 'ALTER TABLE sales ADD COLUMN own INTEGER DEFAULT 0'] as $sql) {
   try { $pdo->exec($sql); } catch (Throwable $e) { /* already there */ }
 }
 function cfg(string $k, $def = null) { global $pdo; $s = $pdo->prepare('SELECT v FROM config WHERE k=?'); $s->execute([$k]); $v = $s->fetchColumn(); return $v === false ? $def : $v; }
@@ -143,7 +143,7 @@ switch ($a) {
     $s = $pdo->prepare('SELECT * FROM sales WHERE t >= ? ORDER BY t'); $s->execute([$since]);
     $sales = $s->fetchAll();
     foreach ($sales as &$x) { $x['ref'] = $x['ref'] === null ? null : (int)$x['ref']; foreach (['list','dto','price'] as $k) $x[$k] = (float)$x[$k];
-      $x['cost'] = $x['cost'] === null ? null : (float)$x['cost']; $x['manual'] = (bool)$x['manual']; }
+      $x['cost'] = $x['cost'] === null ? null : (float)$x['cost']; $x['manual'] = (bool)$x['manual']; $x['own'] = (bool)($x['own'] ?? 0); }
     /* a discount with an end date switches itself off once that day is over */
     $until = (string)cfg('dto_until', '');
     if ($until !== '' && date('Y-m-d') > $until) { setCfg('dto', '0'); setCfg('dto_until', ''); $until = ''; }
@@ -165,6 +165,18 @@ switch ($a) {
       $id, gmdate('c'), $ref, $b['name'] !== null ? txtcut((string)$b['name'], 0, 80) : null, $cat,
       num($b['list'] ?? $price) ?? $price, num($b['dto'] ?? 0) ?? 0, $price, num($b['cost'] ?? null), !empty($b['manual']) ? 1 : 0, $me['name'], $pay]);
     out(['ok' => true, 'id' => $id]);
+
+  case 'take':
+    /* an owner keeps a piece for herself: she pays its full cost, so it brings no profit */
+    needAdmin();
+    $b = body();
+    $id = preg_match('/^[a-z0-9]{8,32}$/', (string)($b['id'] ?? '')) ? $b['id'] : bin2hex(random_bytes(8));
+    $s = $pdo->prepare('SELECT * FROM products WHERE ref=?'); $s->execute([(int)($b['ref'] ?? 0)]); $p = $s->fetch();
+    if (!$p) fail('No encuentro esa pieza');
+    if ($p['cost'] === null) fail('Esta pieza no tiene coste apuntado. Ponle el coste en Productos y vuelve a probar.');
+    $pdo->prepare('INSERT OR IGNORE INTO sales(id,t,ref,name,cat,list,dto,price,cost,manual,seller,pay,own) VALUES(?,?,?,?,?,?,?,?,?,0,?,NULL,1)')->execute([
+      $id, gmdate('c'), (int)$p['ref'], $p['name'], $p['cat'], $p['price'] ?? $p['cost'], 0, $p['cost'], $p['cost'], $me['name']]);
+    out(['ok' => true, 'id' => $id, 'price' => (float)$p['cost']]);
 
   case 'delsale':
     $b = body(); $id = (string)($b['id'] ?? '');
@@ -314,11 +326,11 @@ switch ($a) {
     header('Content-Disposition: attachment; filename="ventas-pb-pauve-' . date('Y-m-d') . '.csv"');
     $f = fopen('php://output', 'w');
     fwrite($f, "\xEF\xBB\xBF");
-    fputcsv($f, ['Fecha', 'Hora', 'Tipo', 'Producto', 'Referencia', 'Precio etiqueta', 'Descuento %', 'Cobrado', 'Coste', 'Vendido por', 'Pago'], ';');
+    fputcsv($f, ['Fecha', 'Hora', 'Tipo', 'Producto', 'Referencia', 'Precio etiqueta', 'Descuento %', 'Cobrado', 'Coste', 'Vendido por', 'Pago', 'Para una dueña'], ';');
     foreach ($pdo->query('SELECT * FROM sales ORDER BY t') as $x) {
       $ts = strtotime($x['t']);
       $nf = fn($v) => $v === null ? '' : str_replace('.', ',', (string)$v);
-      fputcsv($f, [date('d/m/Y', $ts), date('H:i', $ts), $x['cat'], $x['name'] ?? 'SIN CONCRETAR', $x['ref'] ?? '', $nf($x['list']), $nf($x['dto']), $nf($x['price']), $nf($x['cost']), $x['seller'], $x['pay'] ?? ''], ';');
+      fputcsv($f, [date('d/m/Y', $ts), date('H:i', $ts), $x['cat'], $x['name'] ?? 'SIN CONCRETAR', $x['ref'] ?? '', $nf($x['list']), $nf($x['dto']), $nf($x['price']), $nf($x['cost']), $x['seller'], $x['pay'] ?? '', !empty($x['own']) ? 'Sí, a precio de coste' : ''], ';');
     }
     exit;
 }

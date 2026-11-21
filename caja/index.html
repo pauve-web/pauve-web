@@ -747,8 +747,11 @@ function renderMonth(){
   $("mPay").innerHTML = kv("Efectivo", eur(byPay("efectivo"))) + kv("Tarjeta", eur(byPay("tarjeta"))) + (byPay(null)? kv("Sin indicar", eur(byPay(null))) : "");
   const n = owners.length || 1;
   const shares = owners.map(o=>({name:o.name, pct: o.share!=null ? o.share : 100/n}));
-  $("mShare").innerHTML = shares.map(o=>kv(`${esc(o.name)} · ${Math.round(o.pct*10)/10} %`, eur(round2(prof*o.pct/100)))).join("") +
-    `<p class="note">Beneficio = lo cobrado menos el coste de cada pieza.${noCost? ` ${noCost} ${noCost===1?"venta no tiene":"ventas no tienen"} coste (precio a mano) y cuentan como beneficio 0.`:""} Los porcentajes se cambian en Productos › Accesos y contraseñas.</p>`;
+  /* each owner gets back her equal part of what the pieces cost, plus her % of the profit */
+  const cost = round2(ms.reduce((a,s)=>a+(s.cost!=null? s.cost : 0),0));
+  $("mShare").innerHTML = shares.map(o=>{ const c = round2(cost/n), b = round2(prof*o.pct/100);
+      return kv(`${esc(o.name)} · ${Math.round(o.pct*10)/10} % del beneficio<br><small class="note">recupera ${eur(c)} de coste + ${eur(b)} de beneficio</small>`, eur(round2(c+b))); }).join("") +
+    `<p class="note">El coste de las piezas vendidas (${eur(cost)}) vuelve a partes iguales, porque la mercancía se compró a medias. El beneficio es lo cobrado menos ese coste.${noCost? ` ${noCost} ${noCost===1?"venta no tiene":"ventas no tienen"} coste (precio a mano) y cuentan como beneficio 0.`:""} Los porcentajes se cambian en Productos › Accesos y contraseñas.</p>`;
   const cats = CAT_ORDER.map(c=>{ const cs = ms.filter(s=>s.cat===c); return [c, cs.length, round2(cs.reduce((a,s)=>a+s.price,0))]; }).filter(x=>x[1]);
   $("mCats").innerHTML = cats.length ? cats.map(([c,k,t])=>kv(`${c} · ${k} ${k===1?"pieza":"piezas"}`, eur(t))).join("") : `<p class="note">Sin ventas este mes.</p>`;
   const count = {}; ms.filter(s=>s.ref!=null).forEach(s=>count[s.ref]=(count[s.ref]||0)+1);

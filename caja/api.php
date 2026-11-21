@@ -5,12 +5,23 @@ date_default_timezone_set('Europe/Madrid');
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store');
+/* if PHP itself breaks, still answer with a readable message instead of an empty page */
+register_shutdown_function(function () {
+  $e = error_get_last();
+  if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+    if (!headers_sent()) { http_response_code(500); header('Content-Type: application/json; charset=utf-8'); }
+    echo json_encode(['error' => 'Error del servidor: ' . $e['message']], JSON_UNESCAPED_UNICODE);
+  }
+});
 
 define('DATA_DIR', rtrim((string)(getenv('CAJA_DATA') ?: ($_SERVER['CAJA_DATA'] ?? (__DIR__ . '/datos'))), '/'));
 const PHOTO_DIR = DATA_DIR . '/fotos';
 const COOKIE = 'caja_pbp';
 const CATS = ['Pendientes','Anillos','Collares','Pulseras','Charms','Complementos'];
 
+/* text helpers that work without the mbstring extension (not always installed) */
+function txtlen(string $s): int { return (int)preg_match_all('/./us', $s); }
+function txtcut(string $s, int $start, int $len): string { preg_match_all('/./us', $s, $m); return implode('', array_slice($m[0], $start, $len)); }
 function out($data, int $code = 200): void { http_response_code($code); echo json_encode($data, JSON_UNESCAPED_UNICODE); exit; }
 function fail(string $msg, int $code = 400): void { out(['error' => $msg], $code); }
 
@@ -32,10 +43,12 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 $pdo->exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
 $pdo->exec("CREATE TABLE IF NOT EXISTS config (k TEXT PRIMARY KEY, v TEXT);
-CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, role TEXT, name TEXT, created TEXT);
+CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, role TEXT, name TEXT, created TEXT, owner_id INTEGER);
+CREATE TABLE IF NOT EXISTS owners (id INTEGER PRIMARY KEY, name TEXT, hash TEXT);
 CREATE TABLE IF NOT EXISTS products (ref INTEGER PRIMARY KEY, name TEXT, cat TEXT, cost REAL, price REAL, stock INTEGER, photo TEXT, hidden INTEGER DEFAULT 0, added TEXT);
 CREATE TABLE IF NOT EXISTS sales (id TEXT PRIMARY KEY, t TEXT, ref INTEGER, name TEXT, cat TEXT, list REAL, dto REAL, price REAL, cost REAL, manual INTEGER, seller TEXT);");
 
+try { $pdo->exec('ALTER TABLE tokens ADD COLUMN owner_id INTEGER'); } catch (Throwable $e) { /* already there */ }
 function cfg(string $k, $def = null) { global $pdo; $s = $pdo->prepare('SELECT v FROM config WHERE k=?'); $s->execute([$k]); $v = $s->fetchColumn(); return $v === false ? $def : $v; }
 function setCfg(string $k, string $v): void { global $pdo; $pdo->prepare('INSERT INTO config(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v')->execute([$k, $v]); }
 function body(): array { $j = json_decode(file_get_contents('php://input') ?: '[]', true); return is_array($j) ? $j : []; }
@@ -53,10 +66,11 @@ if ($a === 'setup') {
   if (!$isPost) fail('Petición no válida', 405);
   $b = body();
   $team = (string)($b['team'] ?? ''); $admin = (string)($b['admin'] ?? '');
-  if (mb_strlen($team) < 6 || mb_strlen($admin) < 8) fail('La contraseña del equipo necesita al menos 6 caracteres y la tuya al menos 8.');
+  $owner = trim(txtcut((string)($b['owner'] ?? ''), 0, 40)) ?: 'Paula';
+  if (txtlen($team) < 6 || txtlen($admin) < 8) fail('La contraseña del equipo necesita al menos 6 caracteres y la tuya al menos 8.');
   if ($team === $admin) fail('Las dos contraseñas tienen que ser distintas.');
   setCfg('team_hash', password_hash($team, PASSWORD_DEFAULT));
-  setCfg('admin_hash', password_hash($admin, PASSWORD_DEFAULT));
+  $pdo->prepare('INSERT INTO owners(name,hash) VALUES(?,?)')->execute([$owner, password_hash($admin, PASSWORD_DEFAULT)]);
   setCfg('dto', '0');
   /* first load of the product list */
   /* the starting product list arrives with the setup form, so it never has to live in the public repository */
@@ -65,7 +79,7 @@ if ($a === 'setup') {
     foreach ($rows as $r) if (!is_array($r) || count($r) !== 6 || !in_array($r[2], CATS, true)) fail('El archivo de productos no tiene el formato esperado.');
     $ins = $pdo->prepare('INSERT INTO products(ref,name,cat,cost,price,stock,photo,hidden,added) VALUES(?,?,?,?,?,?,NULL,0,?)');
     $pdo->beginTransaction();
-    foreach ($rows as [$ref, $name, $cat, $cost, $price, $stock]) $ins->execute([(int)$ref, mb_substr((string)$name, 0, 80), $cat, num($cost), num($price), max(0, (int)$stock), gmdate('c')]);
+    foreach ($rows as [$ref, $name, $cat, $cost, $price, $stock]) $ins->execute([(int)$ref, txtcut((string)$name, 0, 80), $cat, num($cost), num($price), max(0, (int)$stock), gmdate('c')]);
     $pdo->commit();
   }
   out(['ok' => true]);
@@ -75,14 +89,17 @@ if (!$configured) out(['setup' => true]);
 
 if ($a === 'login') {
   if (!$isPost) fail('Petición no válida', 405);
-  $b = body(); $pw = (string)($b['password'] ?? ''); $name = trim(mb_substr((string)($b['name'] ?? ''), 0, 40));
-  $role = null;
-  if (password_verify($pw, cfg('admin_hash'))) $role = 'admin';
-  elseif (password_verify($pw, cfg('team_hash'))) $role = 'team';
+  $b = body(); $pw = (string)($b['password'] ?? ''); $name = trim(txtcut((string)($b['name'] ?? ''), 0, 40));
+  $role = null; $ownerId = null;
+  /* each owner (Paula, Patricia…) has her own password; the team shares one */
+  foreach ($pdo->query('SELECT id,name,hash FROM owners') as $o) {
+    if (password_verify($pw, $o['hash'])) { $role = 'admin'; $ownerId = (int)$o['id']; $name = $o['name']; break; }
+  }
+  if (!$role && password_verify($pw, (string)cfg('team_hash'))) $role = 'team';
   if (!$role) { sleep(1); fail('Contraseña incorrecta.', 401); }
   if ($name === '') fail('Escribe tu nombre para saber quién vende.');
   $tok = bin2hex(random_bytes(24));
-  $pdo->prepare('INSERT INTO tokens VALUES(?,?,?,?)')->execute([hash('sha256', $tok), $role, $name, gmdate('c')]);
+  $pdo->prepare('INSERT INTO tokens(token,role,name,created,owner_id) VALUES(?,?,?,?,?)')->execute([hash('sha256', $tok), $role, $name, gmdate('c'), $ownerId]);
   setcookie(COOKIE, $tok, ['expires' => time() + 400 * 86400, 'path' => dirname($_SERVER['SCRIPT_NAME']) ?: '/', 'httponly' => true, 'samesite' => 'Lax', 'secure' => !empty($_SERVER['HTTPS'])]);
   out(['ok' => true]);
 }
@@ -90,12 +107,12 @@ if ($a === 'login') {
 /* everything below needs a logged-in device */
 $me = null;
 if (!empty($_COOKIE[COOKIE])) {
-  $s = $pdo->prepare('SELECT role,name FROM tokens WHERE token=?'); $s->execute([hash('sha256', (string)$_COOKIE[COOKIE])]);
+  $s = $pdo->prepare('SELECT role,name,owner_id FROM tokens WHERE token=?'); $s->execute([hash('sha256', (string)$_COOKIE[COOKIE])]);
   $me = $s->fetch() ?: null;
 }
 if (!$me) out(['login' => true]);
 $admin = $me['role'] === 'admin';
-function needAdmin(): void { global $admin; if (!$admin) fail('Solo Paula puede hacer esto.', 403); }
+function needAdmin(): void { global $admin; if (!$admin) fail('Esto solo lo pueden hacer las dueñas.', 403); }
 
 switch ($a) {
   case 'logout':
@@ -121,7 +138,7 @@ switch ($a) {
     $price = num($b['price'] ?? null); if ($price === null || $price < 0) fail('Precio no válido');
     $ref = isset($b['ref']) && $b['ref'] !== null ? (int)$b['ref'] : null;
     $pdo->prepare('INSERT OR IGNORE INTO sales VALUES(?,?,?,?,?,?,?,?,?,?,?)')->execute([
-      $id, gmdate('c'), $ref, $b['name'] !== null ? mb_substr((string)$b['name'], 0, 80) : null, $cat,
+      $id, gmdate('c'), $ref, $b['name'] !== null ? txtcut((string)$b['name'], 0, 80) : null, $cat,
       num($b['list'] ?? $price) ?? $price, num($b['dto'] ?? 0) ?? 0, $price, num($b['cost'] ?? null), !empty($b['manual']) ? 1 : 0, $me['name']]);
     out(['ok' => true, 'id' => $id]);
 
@@ -130,7 +147,7 @@ switch ($a) {
     $s = $pdo->prepare('SELECT t FROM sales WHERE id=?'); $s->execute([$id]); $t = $s->fetchColumn();
     if ($t === false) out(['ok' => true]);
     /* the team may only remove sales from the last 24 hours; older ones only Paula */
-    if (!$admin && strtotime($t) < time() - 86400) fail('Solo Paula puede borrar ventas de días anteriores.', 403);
+    if (!$admin && strtotime($t) < time() - 86400) fail('Las ventas de días anteriores solo las pueden borrar las dueñas.', 403);
     $pdo->prepare('DELETE FROM sales WHERE id=?')->execute([$id]);
     out(['ok' => true]);
 
@@ -168,7 +185,7 @@ switch ($a) {
 
   case 'saveproduct':
     $b = body();
-    $name = trim(mb_substr((string)($b['name'] ?? ''), 0, 80));
+    $name = trim(txtcut((string)($b['name'] ?? ''), 0, 80));
     $cat = in_array($b['cat'] ?? '', CATS, true) ? $b['cat'] : fail('Tipo no válido');
     $price = num($b['price'] ?? null); $cost = num($b['cost'] ?? null);
     $stock = max(0, (int)($b['stock'] ?? 0));
@@ -178,7 +195,7 @@ switch ($a) {
     if ($ref) {
       $s = $pdo->prepare('SELECT * FROM products WHERE ref=?'); $s->execute([$ref]); $old = $s->fetch();
       if (!$old) fail('Ese producto ya no existe.');
-      /* the team can only add units and photos; prices and names are Paula's */
+      /* the team can only add units and photos; prices and names are for the owners */
       if (!$admin) { $name = $old['name']; $cat = $old['cat']; $price = $old['price'] === null ? null : (float)$old['price']; $cost = $old['cost'] === null ? null : (float)$old['cost']; }
       $pdo->prepare('UPDATE products SET name=?,cat=?,price=?,cost=?,stock=?,photo=COALESCE(?,photo) WHERE ref=?')->execute([$name, $cat, $price, $cost, $stock, $photo, $ref]);
     } else {
@@ -191,6 +208,36 @@ switch ($a) {
   case 'hide':
     needAdmin();
     $pdo->prepare('UPDATE products SET hidden=1 WHERE ref=?')->execute([(int)(body()['ref'] ?? 0)]);
+    out(['ok' => true]);
+
+  case 'owners':
+    needAdmin();
+    out(['owners' => $pdo->query('SELECT id,name FROM owners ORDER BY id')->fetchAll(), 'me' => (int)$me['owner_id']]);
+
+  case 'addowner':
+    needAdmin();
+    $b = body(); $n = trim(txtcut((string)($b['name'] ?? ''), 0, 40)); $pw = (string)($b['password'] ?? '');
+    if ($n === '' || txtlen($pw) < 8) fail('Pon su nombre y una contraseña de al menos 8 caracteres.');
+    foreach ($pdo->query('SELECT hash FROM owners') as $o) if (password_verify($pw, $o['hash'])) fail('Esa contraseña ya la usa otra dueña. Elige otra.');
+    if (password_verify($pw, (string)cfg('team_hash'))) fail('Esa es la contraseña del equipo. Elige otra.');
+    $pdo->prepare('INSERT INTO owners(name,hash) VALUES(?,?)')->execute([$n, password_hash($pw, PASSWORD_DEFAULT)]);
+    out(['ok' => true]);
+
+  case 'mypassword':
+    needAdmin();
+    $pw = (string)(body()['password'] ?? '');
+    if (txtlen($pw) < 8) fail('La contraseña necesita al menos 8 caracteres.');
+    if (password_verify($pw, (string)cfg('team_hash'))) fail('Esa es la contraseña del equipo. Elige otra.');
+    $pdo->prepare('UPDATE owners SET hash=? WHERE id=?')->execute([password_hash($pw, PASSWORD_DEFAULT), (int)$me['owner_id']]);
+    out(['ok' => true]);
+
+  case 'teampassword':
+    needAdmin();
+    $pw = (string)(body()['password'] ?? '');
+    if (txtlen($pw) < 6) fail('La contraseña del equipo necesita al menos 6 caracteres.');
+    setCfg('team_hash', password_hash($pw, PASSWORD_DEFAULT));
+    /* close every team session so the old password stops working everywhere */
+    $pdo->exec("DELETE FROM tokens WHERE role='team'");
     out(['ok' => true]);
 
   case 'csv':

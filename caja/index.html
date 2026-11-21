@@ -8,7 +8,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Caja PBxP">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Caja PB x Pauvé</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=DM+Sans:wght@400;500;700&display=swap">
 <style>
@@ -134,6 +138,11 @@ section h2 small{font-family:var(--body);font-size:.8rem;color:var(--muted);font
 .sale.own{border-style:dashed}
 .takebar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:12px;border:1.5px dashed var(--accent);background:var(--accent-soft);font-weight:600;font-size:.9rem}
 .takebar.on{border-style:solid;background:var(--accent);color:var(--accent-fg)}
+.install{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px}
+.install img{border-radius:10px}
+.install small{display:block;color:var(--muted);font-size:.8rem;font-weight:500}
+.install .primary{padding:8px 14px;width:auto;min-height:0}
+.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:10px;line-height:1.45}
 .tag{display:inline-block;font-size:.72rem;font-weight:700;color:var(--warn);background:var(--accent-soft);border-radius:6px;padding:1px 6px;margin-top:2px;border:0}
 .del{border:0;background:transparent;color:var(--muted);font-size:1.1rem;width:34px;height:34px;border-radius:8px}
 .del.armed{background:var(--danger);color:#fff;width:auto;padding:0 10px;font-size:.8rem;font-weight:700}
@@ -173,6 +182,12 @@ body.is-admin .team-only{display:none}
 <main>
   <div class="wrap" id="sellView">
     <div class="banner warn" id="storeWarn" hidden></div>
+    <div class="install" id="installBar" hidden>
+      <img src="icon-192.png" alt="" width="40" height="40">
+      <span><b>Ponla en tu móvil como una app</b><small>Con su icono en la pantalla de inicio</small></span>
+      <button class="primary" id="installBtn">Añadir</button>
+      <button class="x" id="installNo" aria-label="Ahora no">×</button>
+    </div>
     <div class="banner" id="loadNote">Cargando productos…</div>
     <input class="search" id="q" type="search" placeholder="Buscar pieza por nombre (ej. argolla, perla…)" autocomplete="off">
     <div id="results" class="list" hidden></div>
@@ -200,6 +215,7 @@ body.is-admin .team-only{display:none}
   <div class="wrap" id="prodView" hidden>
     <button class="primary" id="newProd">+ Nuevo producto</button>
     <button class="ghost" id="shootBtn">Hacer fotos en serie</button>
+    <button class="ghost" id="installBtn2">Añadir la caja a la pantalla de inicio</button>
     <div id="adminTools" hidden style="display:flex;flex-direction:column;gap:8px">
       <label class="ghost" for="impFile" style="text-align:center">Cargar lista de productos (archivo .json)</label>
       <input id="impFile" type="file" accept=".json,application/json" hidden>
@@ -862,6 +878,28 @@ function showShoot(){
     }catch(x){ $("shootMsg").textContent = $("storeWarn").textContent || "No se ha podido subir. Prueba otra vez."; warn(""); }
   };
 }
+/* ---------- add to the phone's home screen ---------- */
+let installEvt = null;
+const standalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function showInstallBar(){ $("installBar").hidden = standalone() || lsGet("caja-install-no")==="1"; }
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; showInstallBar(); });
+addEventListener("appinstalled", () => { $("installBar").hidden = true; showToast("Lista: ya tienes la caja en la pantalla de inicio."); });
+$("installNo").onclick = () => { lsSet("caja-install-no","1"); $("installBar").hidden = true; showToast("Puedes añadirla cuando quieras desde Productos."); };
+async function installApp(){
+  if(installEvt){ installEvt.prompt(); const r = await installEvt.userChoice.catch(()=>null); installEvt = null; if(r && r.outcome==="accepted") $("installBar").hidden = true; return; }
+  openSheet("Añadir a la pantalla de inicio");
+  $("sheetBody").innerHTML = isIOS()
+    ? `<ol class="steps"><li>Abre esta página en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> (el cuadrado con la flecha hacia arriba, abajo en el centro).</li><li>Baja y toca <b>«Añadir a pantalla de inicio»</b>.</li><li>Toca <b>«Añadir»</b> arriba a la derecha.</li></ol><p class="note">Aparecerá el icono «Caja PBxP» junto a tus otras apps.</p>`
+    : `<ol class="steps"><li>Abre esta página en <b>Chrome</b>.</li><li>Toca los <b>tres puntos</b> de arriba a la derecha.</li><li>Toca <b>«Añadir a pantalla de inicio»</b> o <b>«Instalar aplicación»</b>.</li><li>Confirma con <b>«Instalar»</b> o <b>«Añadir»</b>.</li></ol><p class="note">Aparecerá el icono «Caja PBxP» junto a tus otras apps.</p>`;
+}
+$("installBtn").onclick = installApp;
+$("installBtn2").onclick = installApp; $("installBtn2").hidden = standalone();
+showInstallBar();
+
 refresh();
 load().catch(()=>{});
 </script>
